@@ -1,0 +1,9 @@
+{
+  "name": "syllavox-extension-tests",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/extension.test.js",
+    "package:firefox": "powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\\package_firefox.ps1"
+  }
+}

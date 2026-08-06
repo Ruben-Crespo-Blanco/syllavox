@@ -1,0 +1,146 @@
+{
+  "purpose": "Observation corpus for the text-formatting audit. No normalization rules are implied by this file.",
+  "current_shared_controller_behavior": "strip_outer_whitespace_only",
+  "cases": [
+    {
+      "id": "outer-whitespace",
+      "category": "whitespace",
+      "input": "  Hello world \t\r\n",
+      "expected_current_speech_text": "Hello world",
+      "question": "Is outer trimming sufficient for normal pasted text?"
+    },
+    {
+      "id": "repeated-spaces",
+      "category": "whitespace",
+      "input": "Hello  world",
+      "expected_current_speech_text": "Hello  world",
+      "question": "Should repeated internal spaces create a longer pause?"
+    },
+    {
+      "id": "tabs-and-line-breaks",
+      "category": "whitespace",
+      "input": "First\tsecond\nthird",
+      "expected_current_speech_text": "First\tsecond\nthird",
+      "question": "Should tabs and single line breaks be preserved or converted?"
+    },
+    {
+      "id": "paragraph-break",
+      "category": "whitespace",
+      "input": "First paragraph.\n\nSecond paragraph.",
+      "expected_current_speech_text": "First paragraph.\n\nSecond paragraph.",
+      "question": "Should paragraph boundaries produce a stronger pause?"
+    },
+    {
+      "id": "repeated-punctuation",
+      "category": "punctuation",
+      "input": "Wait... really?!",
+      "expected_current_speech_text": "Wait... really?!",
+      "question": "Does Piper pause or emphasize repeated punctuation naturally?"
+    },
+    {
+      "id": "typographic-punctuation",
+      "category": "punctuation",
+      "input": "“Hello”—she said. It’s fine.",
+      "expected_current_speech_text": "“Hello”—she said. It’s fine.",
+      "question": "Are curly quotes, em dashes, and apostrophes pronounced naturally?"
+    },
+    {
+      "id": "html-markup",
+      "category": "markup",
+      "input": "Hello <em>world</em>",
+      "expected_current_speech_text": "Hello <em>world</em>",
+      "question": "Could markup artifacts be spoken when text comes from an API or page?"
+    },
+    {
+      "id": "html-entity",
+      "category": "markup",
+      "input": "Tom &amp; Jerry",
+      "expected_current_speech_text": "Tom &amp; Jerry",
+      "question": "Should HTML entities be decoded before synthesis?"
+    },
+    {
+      "id": "markdown",
+      "category": "markup",
+      "input": "**Important** _local_ [link](https://example.com)",
+      "expected_current_speech_text": "**Important** _local_ [link](https://example.com)",
+      "question": "Should Markdown syntax be removed while preserving visible words?"
+    },
+    {
+      "id": "url",
+      "category": "technical-token",
+      "input": "Visit https://example.com/a?x=1&y=2.",
+      "expected_current_speech_text": "Visit https://example.com/a?x=1&y=2.",
+      "question": "Should URLs be spoken literally, summarized, or skipped?"
+    },
+    {
+      "id": "email",
+      "category": "technical-token",
+      "input": "Contact support@example.com for help.",
+      "expected_current_speech_text": "Contact support@example.com for help.",
+      "question": "Should email addresses receive special pronunciation handling?"
+    },
+    {
+      "id": "numbers-and-units",
+      "category": "technical-token",
+      "input": "Version 2.5 is 100% ready at 3.5 kg.",
+      "expected_current_speech_text": "Version 2.5 is 100% ready at 3.5 kg.",
+      "question": "Do numbers, decimals, percentages, and units sound natural?"
+    },
+    {
+      "id": "bullet-list",
+      "category": "structure",
+      "input": "• First item\n• Second item",
+      "expected_current_speech_text": "• First item\n• Second item",
+      "question": "Should bullets become pauses or spoken symbols?"
+    },
+    {
+      "id": "code-fragment",
+      "category": "technical-token",
+      "input": "Run `pip install syllavox` before starting.",
+      "expected_current_speech_text": "Run `pip install syllavox` before starting.",
+      "question": "Should code delimiters and command syntax be preserved?"
+    },
+    {
+      "id": "nonbreaking-space",
+      "category": "unicode-whitespace",
+      "input": "Price\u00a0100\u00a0EUR",
+      "expected_current_speech_text": "Price\u00a0100\u00a0EUR",
+      "question": "Does nonbreaking whitespace create an unintended pause?"
+    },
+    {
+      "id": "zero-width-space",
+      "category": "unicode-control",
+      "input": "A\u200bB",
+      "expected_current_speech_text": "A\u200bB",
+      "question": "Should invisible formatting characters be removed?"
+    },
+    {
+      "id": "combining-accent",
+      "category": "unicode-normalization",
+      "input": "Cafe\u0301 au lait",
+      "expected_current_speech_text": "Cafe\u0301 au lait",
+      "question": "Should canonically equivalent Unicode forms be normalized?"
+    },
+    {
+      "id": "emoji-and-symbol",
+      "category": "symbol",
+      "input": "Build passed ✅ — great work!",
+      "expected_current_speech_text": "Build passed ✅ — great work!",
+      "question": "Should emoji and symbols be spoken, ignored, or described?"
+    },
+    {
+      "id": "embedded-control",
+      "category": "unicode-control",
+      "input": "Hello\u0007world",
+      "expected_current_speech_text": "Hello\u0007world",
+      "question": "Can embedded control characters cause pronunciation artifacts?"
+    },
+    {
+      "id": "empty-after-trim",
+      "category": "validation",
+      "input": " \t\n",
+      "expected_current_speech_text": "",
+      "question": "All production entry points should reject this consistently."
+    }
+  ]
+}

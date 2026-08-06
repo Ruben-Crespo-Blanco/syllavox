@@ -1,0 +1,62 @@
+import os
+from pathlib import Path
+
+from syllavox.constants import APP_NAME, LOGS_DIR_NAME, SETTINGS_FILE_NAME
+from syllavox.paths import (
+    ensure_app_directories,
+    get_app_base_dir,
+    get_local_appdata_dir,
+    get_logs_dir,
+    get_settings_file_path,
+)
+
+
+def test_get_local_appdata_dir_uses_localappdata(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+
+    assert get_local_appdata_dir() == tmp_path
+
+
+def test_get_local_appdata_dir_falls_back_to_home(monkeypatch) -> None:
+    monkeypatch.delenv("LOCALAPPDATA", raising=False)
+
+    assert get_local_appdata_dir() == Path.home()
+
+
+def test_app_base_dir_is_under_localappdata(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+
+    expected = tmp_path / APP_NAME
+
+    assert get_app_base_dir() == expected
+
+
+def test_settings_file_path(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+
+    expected = tmp_path / APP_NAME / SETTINGS_FILE_NAME
+
+    assert get_settings_file_path() == expected
+
+
+def test_logs_dir(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+
+    expected = tmp_path / APP_NAME / LOGS_DIR_NAME
+
+    assert get_logs_dir() == expected
+
+
+def test_ensure_app_directories_creates_base_and_logs(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+
+    ensure_app_directories()
+
+    assert get_app_base_dir().exists()
+    assert get_app_base_dir().is_dir()
+
+    assert get_logs_dir().exists()
+    assert get_logs_dir().is_dir()

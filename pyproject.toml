@@ -1,0 +1,48 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "syllavox"
+version = "0.1.0"
+description = "Local offline text-to-speech reader"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [{name = "Rubén Crespo Blanco"}]
+requires-python = ">=3.10"
+keywords = ["text-to-speech", "tts", "piper", "offline", "accessibility"]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+    "Topic :: Text Processing",
+]
+
+dependencies = [
+    "PySide6",
+    "fastapi",
+    "uvicorn",
+    "pydantic",
+    "piper-tts[zh]",
+]
+
+[project.urls]
+Homepage = "https://github.com/Ruben-Crespo-Blanco/tts_dev"
+Repository = "https://github.com/Ruben-Crespo-Blanco/tts_dev"
+Issues = "https://github.com/Ruben-Crespo-Blanco/tts_dev/issues"
+
+[project.optional-dependencies]
+packaging = [
+    "pyinstaller>=6.0",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+syllavox = ["assets/*.png"]
