@@ -32,9 +32,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/Ruben-Crespo-Blanco/tts_dev"
-Repository = "https://github.com/Ruben-Crespo-Blanco/tts_dev"
-Issues = "https://github.com/Ruben-Crespo-Blanco/tts_dev/issues"
+Homepage = "https://github.com/Ruben-Crespo-Blanco/syllavox"
+Repository = "https://github.com/Ruben-Crespo-Blanco/syllavox"
+Issues = "https://github.com/Ruben-Crespo-Blanco/syllavox/issues"
 
 [project.optional-dependencies]
 packaging = [
