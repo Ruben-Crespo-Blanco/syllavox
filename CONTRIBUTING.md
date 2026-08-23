@@ -3,10 +3,10 @@
 Thank you for taking an interest in Syllavox. The project is a
 local text-to-speech application maintained as a small side project.
 
-Version 0.1.0 focuses on a portable Windows application, Piper voices, a
-shared local speech pipeline, browser-selected text, clipboard hotkeys, and a
-local API. Contributions should preserve that local-first behavior unless a
-change is explicitly discussed first.
+Version 0.1.1 focuses on maintaining the portable Windows application, Piper
+voices, a shared local speech pipeline, browser-selected text, clipboard
+hotkeys, and a local API. Contributions should preserve that local-first
+behavior unless a change is explicitly discussed first.
 
 ## Before you start
 
@@ -27,7 +27,7 @@ Development currently targets Windows. From the project directory:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[packaging]"
+python -m pip install -e ".[dev,packaging]"
 ```
 
 Run the application with:

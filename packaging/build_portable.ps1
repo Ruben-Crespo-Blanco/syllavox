@@ -159,7 +159,7 @@ $inventoryLines | Set-Content -LiteralPath $dependencyInventory -Encoding UTF8
 
 $portableReadme = Join-Path $portableRoot "PORTABLE_README.txt"
 @"
-Syllavox - portable build
+Syllavox $projectVersion - portable build
 
 Run Syllavox.exe to start the application.
 

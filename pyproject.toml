@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "syllavox"
-version = "0.1.0"
+version = "0.1.1"
 description = "Local offline text-to-speech reader"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -37,6 +37,9 @@ Repository = "https://github.com/Ruben-Crespo-Blanco/syllavox"
 Issues = "https://github.com/Ruben-Crespo-Blanco/syllavox/issues"
 
 [project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+]
 packaging = [
     "pyinstaller>=6.0",
 ]

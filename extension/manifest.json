@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Syllavox",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Read selected browser text using the local offline Syllavox desktop application.",
 
   "permissions": [

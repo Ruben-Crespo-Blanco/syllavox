@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
+import tomllib
 
 from syllavox.constants import APP_NAME, PACKAGE_NAME, PROJECT_VERSION
 
@@ -20,6 +21,7 @@ def _project_version_from_pyproject() -> str:
 
 
 def test_release_version_is_consistent_across_project_metadata() -> None:
+    assert PROJECT_VERSION == "0.1.1"
     assert _project_version_from_pyproject() == PROJECT_VERSION
 
     for manifest_name in ("manifest.json", "manifest.firefox.json"):
@@ -38,3 +40,15 @@ def test_public_package_name_is_syllavox() -> None:
     pyproject = (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
     assert 'name = "syllavox"' in pyproject
     assert 'syllavox = ["assets/*.png"]' in pyproject
+
+
+def test_development_dependencies_declare_the_test_runner() -> None:
+    project = tomllib.loads(
+        (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    )
+    development_requirements = project["project"]["optional-dependencies"]["dev"]
+
+    assert any(
+        requirement.startswith("pytest")
+        for requirement in development_requirements
+    )

@@ -4,12 +4,12 @@ Syllavox reads text aloud on your Windows computer using local speech
 synthesis. Text is processed on the computer rather than sent to a cloud TTS
 service.
 
-This is the public MVP release, version **0.1.0**. It is a Windows portable
+This is the public MVP release, version **0.1.1**. It is a Windows portable
 application: download it, extract it, and run it. No installer or Python
 installation is required for ordinary use.
 
 For the concise public-release summary, see the
-[v0.1.0 release notes](docs/release-notes-0.1.0.md).
+[v0.1.1 release notes](docs/release-notes-0.1.1.md).
 
 ## Before you start
 
@@ -185,7 +185,7 @@ itself.
 
 ## Release scope and limitations
 
-Version 0.1.0 is intentionally a focused Windows MVP:
+Version 0.1.1 is a maintenance release for the focused Windows MVP:
 
 - one universal portable Windows distribution, including Chinese support;
 - no bundled voice models;
@@ -224,7 +224,7 @@ From the project directory on Windows:
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -e ".[packaging]"
+python -m pip install -e ".[dev,packaging]"
 python -m syllavox.main
 pytest
 ```

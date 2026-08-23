@@ -17,6 +17,22 @@ is the Windows MVP, version 0.1.0.
 | **0.6.0** | Linux adaptation | Add Linux platform services, hotkeys, tray integration, packaging, distribution testing, and documented supported environments. |
 | **1.0.0** | Stable multi-platform release | Consolidate supported platforms, resolve major compatibility issues, stabilize APIs and settings, add a complete user-facing installer, complete release documentation, and establish a reliable feedback and maintenance process. |
 
+The existing **0.3.0 UI/UX** phase remains limited to general front-end polish,
+voice/model management, and clearer loading, synthesis, and error feedback.
+Reading sessions and a dedicated accessibility-first reading interface are
+explicitly outside the numbered roadmap and are deferred to an unassigned
+future phase after 1.0.0.
+
+### Deferred beyond 1.0.0
+
+- Reading sessions with sentence/paragraph navigation, replay, previous/next
+  controls, and a persistent reading position.
+- An accessibility-first reading UI with screen-reader-oriented interaction,
+  high-contrast behavior, expanded keyboard control, and optional synchronized
+  text highlighting.
+- Context-agnostic highlighting inside arbitrary browsers, PDFs, Word
+  documents, or other host applications.
+
 ### Known language-specific compatibility issue
 
 - **Hebrew Piper voices:** loading currently fails with `hebrew is not a
@@ -25,6 +41,104 @@ is the Windows MVP, version 0.1.0.
   specific models, and add a diagnostic/manual compatibility check before
   attempting a fix.
 
+## Sherpa-ONNX and rust-tts-wrapper evaluation
+
+Evaluation completed on 2026-08-23 against the current Python/Piper
+architecture and the upstream projects.
+
+### Decision
+
+- **Implement Sherpa-ONNX directly as an optional Python backend.** This fits
+  the existing `TTSBackend` interface and should be implemented as part of the
+  existing 0.4.0 additional-backend phase, without replacing Piper or changing
+  the public API.
+- **Do not implement rust-tts-wrapper as Syllavox's core TTS layer now.** Keep
+  it as a future interoperability option if SAPI, native cross-platform
+  bindings, or a shared timing-capable native layer becomes a product
+  requirement.
+
+### Sherpa-ONNX fit
+
+Sherpa-ONNX has a direct Python `OfflineTts` API and supports offline VITS
+(including Piper-format models), Kokoro, Matcha, and other model families.
+Its current examples include English and multilingual Kokoro model bundles,
+CPU execution, configurable thread counts, speaker IDs, speech speed, and
+sentence-batch limits. Current releases also publish Python wheels for the
+Windows, macOS, and Linux environments relevant to the planned platform work.
+See the upstream [Python offline TTS example](https://github.com/k2-fsa/sherpa-onnx/blob/master/python-api-examples/offline-tts.py),
+[TTS model documentation](https://github.com/k2-fsa/sherpa-onnx/blob/master/sherpa-onnx/c-api/docs/tts.dox),
+and [PyPI distribution files](https://pypi.org/project/sherpa-onnx/).
+
+It is therefore a good match for Syllavox's existing design:
+
+```text
+TTSBackend
+├── PiperBackend          (existing default backend)
+└── SherpaOnnxBackend     (new optional backend)
+```
+
+The implementation should:
+
+1. Add `sherpa-onnx` as an optional dependency rather than making it a
+   mandatory 0.1.x dependency.
+2. Add a `SherpaOnnxBackend` that creates and caches one `OfflineTts` instance
+   per installed model bundle, generates PCM audio, and writes the same local
+   WAV artifact consumed by the existing `AudioPlayer`.
+3. Store Sherpa model bundles separately under a backend-specific directory.
+   A bundle manifest must describe the model, tokens, voices, phonemization
+   data, lexicons/rule FSTs, language, and license terms.
+4. Represent a Sherpa voice as a stable backend-qualified ID, for example
+   `kokoro-multilang-v1_0#sid=18`, because one model bundle can contain many
+   speakers. Keep the public `VoiceInfo` and `/v1/voices` shapes stable.
+5. Reuse `SpeechController`, `AudioPlayer`, pause/resume, interruption, WAV
+   cleanup, and the existing local-only API. Do not add a second playback
+   implementation.
+6. Add backend-specific diagnostics for missing bundle files, invalid model
+   configuration, unsupported speakers, provider/runtime failures, and output
+   sample-rate problems.
+7. Extend the portable-build specification to collect Sherpa's native runtime
+   libraries and notices, pin a tested version, and verify the resulting
+   Windows artifact on a clean machine.
+
+The acceptance gate should be measured rather than assumed: cold-start time,
+warm synthesis latency, real-time factor on representative text, memory use,
+voice/model size, interruption behavior, output compatibility, and licensing
+must all be compared with the current Piper path. The first implementation
+should use CPU execution and one proven Kokoro model family; GPU providers and
+large model catalogs should remain out of scope until the baseline is stable.
+
+Sherpa-ONNX should not be adopted as a highlighting solution. Its current TTS
+path produces audio but does not provide exact word-level timing to callers;
+upstream requests for word-level timestamp/boundary output remain open. See
+the open [word-boundary feature request](https://github.com/k2-fsa/sherpa-onnx/issues/3727).
+Any future timing interface should therefore be optional and should support
+estimated boundaries without claiming exact synchronization.
+
+### rust-tts-wrapper fit
+
+`rust-tts-wrapper` provides a Rust library with a C ABI, native SAPI support,
+Sherpa-ONNX integration, optional Speech Markdown/SSML handling, and bindings
+for several languages. Its local word-boundary behavior is primarily estimated
+for Sherpa-ONNX rather than being a reliable source of exact alignment. See
+the upstream [repository](https://github.com/AACTools/rust-tts-wrapper) and
+[Cargo feature/dependency definition](https://raw.githubusercontent.com/AACTools/rust-tts-wrapper/main/Cargo.toml).
+
+Using it inside Syllavox now would require:
+
+- building and pinning a native DLL/shared library for every supported target;
+- adding a `ctypes`/CFFI layer with callback, lifetime, error, and buffer
+  ownership handling;
+- extending the PyInstaller and license inventory for the native artifact;
+- duplicating or adapting model-bundle discovery and voice management; and
+- deciding which optional engines are compiled, while explicitly excluding
+  the wrapper's cloud engines to preserve Syllavox's local/offline boundary.
+
+That complexity does not currently buy Syllavox a better integration than the
+direct Python API. Revisit the wrapper only if Syllavox needs a shared native
+engine for SAPI and multiple desktop platforms, or if upstream provides a
+stable packaged binding with timing guarantees that the direct Python path
+cannot provide.
+
 ## Long-term backlog
 
 - Alternative voice-catalog hosting or mirrors if Hugging Face becomes
@@ -32,6 +146,10 @@ is the Windows MVP, version 0.1.0.
 - Additional TTS backends beyond Piper and Kokoro.
 - Further distribution improvements beyond the 1.0.0 installer.
 - Broader automation and integration support.
+- Investigate whether Syllavox voices, models, or synthesis services could be
+  integrated into or used by NVDA and comparable assistive-technology
+  software, subject to technical feasibility, licensing, accessibility needs,
+  and collaboration with the relevant projects.
 - A phone application or mobile companion app.
 
 ## Planning principles

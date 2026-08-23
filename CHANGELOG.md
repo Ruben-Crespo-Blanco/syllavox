@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.1.1] - 2026-08-23
+
+Syllavox 0.1.1 is a maintenance release for the Windows MVP.
+
+### Changed
+
+- Aligned the Python package, runtime, and browser-extension versions at
+  `0.1.1`.
+- Declared the pytest development extra so the automated test environment can
+  be recreated from project metadata.
+- Updated release documentation and portable-build metadata for the current
+  release.
+- Added a release-metadata regression check for the declared test runner.
+
+### Release scope
+
+This release does not add reading sessions, a redesigned accessibility-first
+interface, new TTS backends, or new platform targets. Those items remain on
+the future roadmap.
+
 ## [0.1.0] - 2026-08-06
 
 Syllavox is a Windows-first local, offline text-to-speech desktop application.
