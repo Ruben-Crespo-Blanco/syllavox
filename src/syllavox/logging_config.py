@@ -116,6 +116,22 @@ def get_logger(name: str | None = None) -> logging.Logger:
     return logging.getLogger(f"{base_name}.{name}")
 
 
+def shutdown_logging() -> None:
+    """Flush and close Syllavox file/console handlers.
+
+    This is used before privacy cleanup so Windows does not keep the log file
+    open while the application data directory is being removed.
+    """
+    logger = logging.getLogger("syllavox")
+
+    for handler in list(logger.handlers):
+        try:
+            handler.flush()
+        finally:
+            handler.close()
+            logger.removeHandler(handler)
+
+
 def log_startup(logger: logging.Logger | None = None) -> None:
     """
     Log application startup.

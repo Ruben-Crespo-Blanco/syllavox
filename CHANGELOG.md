@@ -1,5 +1,31 @@
 # Changelog
 
+## [0.2.0] - 2026-08-23
+
+Syllavox 0.2.0 is the compatibility and privacy release for the Windows MVP.
+
+### Added
+
+- Conservative shared text normalization for common HTML/Markdown markup,
+  HTML entities, Unicode normalization, invisible controls, whitespace, and
+  paragraph boundaries.
+- Runtime-aware Piper phonemizer compatibility preflight and diagnostics for
+  language-specific voice failures.
+- **Clear local data and quit** action covering settings, logs, temporary and
+  retained audio, downloaded models, and language resources.
+
+### Changed
+
+- The visible text counter and request validation now count the normalized
+  speech text rather than unformatted pasted input.
+- Piper health details report voices that need language compatibility attention.
+
+### Release scope
+
+This release does not add reading sessions, an accessibility-first reading
+interface, new TTS backends, or new platform targets. Those remain future
+roadmap work.
+
 ## [0.1.1] - 2026-08-23
 
 Syllavox 0.1.1 is a maintenance release for the Windows MVP.

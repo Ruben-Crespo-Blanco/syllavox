@@ -273,3 +273,30 @@ def test_window_remains_usable_when_backend_is_unavailable(
     assert "backend unavailable" in window._feedback_label.text().lower()
 
     window.close()
+
+
+def test_window_clear_local_data_removes_app_data_and_skips_close_save(
+    tmp_path: Path,
+    qt_app: QApplication,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    local_appdata = tmp_path / "local-appdata"
+    app_data_dir = local_appdata / "Syllavox"
+    monkeypatch.setenv("LOCALAPPDATA", str(local_appdata))
+    monkeypatch.setattr(
+        window_module.QMessageBox,
+        "question",
+        lambda *args, **kwargs: window_module.QMessageBox.StandardButton.Yes,
+    )
+
+    window, _, _, _ = make_window(tmp_path, qt_app)
+    (app_data_dir / "models").mkdir(parents=True)
+    (app_data_dir / "models" / "voice.onnx").write_bytes(b"model")
+    (app_data_dir / "settings.json").write_text("{}", encoding="utf-8")
+
+    window._clear_local_data()
+
+    assert not app_data_dir.exists()
+    assert window._local_data_cleanup_requested is True
+
+    window.close()

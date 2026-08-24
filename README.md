@@ -4,12 +4,12 @@ Syllavox reads text aloud on your Windows computer using local speech
 synthesis. Text is processed on the computer rather than sent to a cloud TTS
 service.
 
-This is the public MVP release, version **0.1.1**. It is a Windows portable
+This is the public MVP release, version **0.2.0**. It is a Windows portable
 application: download it, extract it, and run it. No installer or Python
 installation is required for ordinary use.
 
 For the concise public-release summary, see the
-[v0.1.1 release notes](docs/release-notes-0.1.1.md).
+[v0.2.0 release notes](docs/release-notes-0.2.0.md).
 
 ## Before you start
 
@@ -77,6 +77,11 @@ The main window lets you:
 New speech requests interrupt the current playback. Syllavox does not queue
 multiple requests.
 
+Before synthesis, Syllavox applies conservative text formatting: it removes
+common HTML/Markdown decoration, decodes HTML entities, normalizes Unicode,
+removes invisible control characters, and preserves visible punctuation,
+URLs, and paragraph breaks.
+
 ### Clipboard hotkey
 
 The default global hotkey is:
@@ -135,8 +140,10 @@ The application stores runtime data under:
 | `audio\` | Explicitly retained runtime audio files |
 
 The current release can delete individual voice models from **Manage
-voices...**, and can remove unused `g2pW` data. A complete privacy cleanup
-screen for all settings, logs, models, and retained audio is future work.
+voices...**, remove unused `g2pW` data, or use **Clear local data and quit** in
+the Settings section. The privacy action removes all Syllavox-managed settings,
+logs, temporary and retained audio, downloaded models, and language resources.
+It does not delete WAV files exported to other locations.
 
 To remove the application manually, quit Syllavox and delete the extracted
 portable application folder. This does not remove local settings, logs, or
@@ -164,8 +171,9 @@ model limitations. When reporting the problem, include the exact voice ID and
 language, but do not attach the model files.
 
 Some Hebrew Piper voices currently fail while loading with
-`hebrew is not a valid phoneme type`. This is a known compatibility issue under
-investigation; include the exact Hebrew voice ID when reporting it.
+`hebrew is not a valid phoneme type`. v0.2.0 classifies unsupported language
+phonemizers explicitly and reports the affected voice/runtime combination;
+include the exact voice ID when reporting a remaining compatibility problem.
 
 ### A Chinese voice takes longer the first time
 
@@ -185,7 +193,7 @@ itself.
 
 ## Release scope and limitations
 
-Version 0.1.1 is a maintenance release for the focused Windows MVP:
+Version 0.2.0 extends the focused Windows MVP with:
 
 - one universal portable Windows distribution, including Chinese support;
 - no bundled voice models;
@@ -193,11 +201,15 @@ Version 0.1.1 is a maintenance release for the focused Windows MVP:
 - Chrome and Edge extension support;
 - experimental Firefox support;
 - local HTTP API for integrations;
+- conservative speech-text normalization for common pasted markup and Unicode
+  formatting artifacts;
+- runtime-aware Piper language-compatibility diagnostics;
+- complete local-data cleanup for Syllavox-managed data;
 - no playback queue; new requests interrupt current playback.
 
 macOS and Linux versions, a more polished interface, broader language-specific
-compatibility work, complete local-data cleanup, and additional TTS backends
-remain future work. Kokoro TTS is planned as a future backend and voice source.
+compatibility work, and additional TTS backends remain future work. Kokoro TTS
+is planned as a future backend and voice source.
 The internal import package is `syllavox`, and application data is stored in
 the current Syllavox data directory.
 

@@ -1,6 +1,6 @@
 # Public feedback guide
 
-Thank you for testing Syllavox 0.1.1. This guide is for people trying the
+Thank you for testing Syllavox 0.2.0. This guide is for people trying the
 public Windows MVP, including people who do not work with Python or source
 code.
 
@@ -28,7 +28,7 @@ Chinese voice may download the additional `g2pW` resource on first use.
 Please report both failures and confusing or unexpectedly good behavior. The
 most useful information is:
 
-- Syllavox version, normally `0.1.1`;
+- Syllavox version, normally `0.2.0`;
 - Windows version;
 - exact voice ID and language;
 - how you started speech: window, hotkey, browser, or API;
@@ -72,10 +72,11 @@ When the basic test is complete, consider these questions:
 
 ## Current limitations
 
-The 0.1.1 release is a Windows portable MVP maintenance release. It has no
-installer or automatic updater, Firefox support is experimental, voice models
-are downloaded by the user, and new speech requests interrupt current playback
-instead of entering a queue.
+The 0.2.0 release is a Windows portable MVP compatibility and privacy release.
+It has no installer or automatic updater, Firefox support is experimental, voice
+models are downloaded by the user, and new speech requests interrupt current
+playback instead of entering a queue. The Settings section includes a complete
+local-data cleanup action; exported WAV files saved elsewhere are not deleted.
 
 ## Security reports
 

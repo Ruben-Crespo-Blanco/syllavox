@@ -16,6 +16,7 @@ class DiagnosticStatus(str, Enum):
     MISSING_MODEL_FILES = "missing_model_files"
     INVALID_CONFIG = "invalid_config"
     MISSING_RESOURCE = "missing_resource"
+    LANGUAGE_COMPATIBILITY_FAILURE = "language_compatibility_failure"
     DEPENDENCY_FAILURE = "dependency_failure"
     MODEL_FAILURE = "model_failure"
     LOAD_FAILURE = "load_failure"

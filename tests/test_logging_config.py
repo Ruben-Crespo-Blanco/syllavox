@@ -11,6 +11,7 @@ from syllavox.logging_config import (
     log_fatal_initialization_error,
     log_shutdown,
     log_startup,
+    shutdown_logging,
 )
 from syllavox.paths import get_logs_dir
 
@@ -99,3 +100,18 @@ def test_logging_rotation_constants_are_reasonable() -> None:
     assert LOG_MAX_BYTES > 0
     assert LOG_MAX_BYTES <= 5 * 1024 * 1024
     assert LOG_BACKUP_COUNT >= 1
+
+
+def test_shutdown_logging_closes_and_removes_handlers(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    _reset_syllavox_logger()
+
+    logger = configure_logging()
+    assert logger.handlers
+
+    shutdown_logging()
+
+    assert logger.handlers == []

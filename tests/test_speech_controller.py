@@ -58,7 +58,20 @@ def test_speech_controller_strips_only_outer_whitespace(
 
     controller.speak("  First  line\nSecond\tline  ", "request-formatting")
 
-    assert backend.synthesis_calls[-1].text == "First  line\nSecond\tline"
+    assert backend.synthesis_calls[-1].text == "First line\nSecond line"
+
+
+def test_speech_controller_removes_common_markup_and_invisible_characters(
+    tmp_path: Path,
+) -> None:
+    controller, _, _, backend = make_controller(tmp_path)
+
+    controller.speak(
+        "  **Hello** <em>world</em>\u200b &amp; friends  ",
+        "request-markup",
+    )
+
+    assert backend.synthesis_calls[-1].text == "Hello world & friends"
 
 
 def test_stale_completion_does_not_change_newer_request_state(

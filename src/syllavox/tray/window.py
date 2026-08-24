@@ -6,8 +6,10 @@ from pathlib import Path
 
 from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
+    QApplication,
     QFileDialog,
     QLabel,
+    QMessageBox,
     QMainWindow,
     QPushButton,
     QVBoxLayout,
@@ -16,12 +18,14 @@ from PySide6.QtWidgets import (
 
 from syllavox.constants import PRODUCT_NAME
 from syllavox.hotkey.manager import HotkeyStatus
-from syllavox.logging_config import get_logger
+from syllavox.local_data import clear_local_data
+from syllavox.logging_config import configure_logging, get_logger, shutdown_logging
 from syllavox.qt_bridge import QtCallbackRelay
 from syllavox.request_ids import new_request_id
 from syllavox.settings import SettingsManager
 from syllavox.speech.controller import SpeechController
 from syllavox.state import AppState, StateManager, StateSnapshot
+from syllavox.text_formatting import normalize_for_speech
 from syllavox.tts.base import VoiceInfo
 from syllavox.tts.catalog import PiperVoiceCatalog
 from syllavox.tts.errors import BackendUnavailableError, TTSBackendError
@@ -107,6 +111,10 @@ class MainWindow(QMainWindow):
         self._volume_value_label = self._settings_panel.volume_value_label
         self._rate_spinbox = self._settings_panel.rate_spinbox
         self._save_settings_button = QPushButton("Save settings")
+        self._clear_local_data_button = (
+            self._settings_panel.clear_local_data_button
+        )
+        self._local_data_cleanup_requested = False
 
         self._load_settings_into_controls()
         self._load_voices()
@@ -144,6 +152,9 @@ class MainWindow(QMainWindow):
         self._stop_button.clicked.connect(self._stop_speaking)
         self._clear_button.clicked.connect(self._clear_text)
         self._save_settings_button.clicked.connect(self._save_settings)
+        self._settings_panel.clear_local_data_requested.connect(
+            self._clear_local_data
+        )
         self._text_edit.textChanged.connect(self._refresh_text_status)
         self._max_text_length_spinbox.valueChanged.connect(
             self._refresh_text_status
@@ -320,8 +331,11 @@ class MainWindow(QMainWindow):
 
     def _refresh_controls(self) -> None:
         text = self._text_edit.toPlainText()
-        has_text = bool(text.strip())
-        within_limit = len(text.strip()) <= self._max_text_length_spinbox.value()
+        formatted_text = normalize_for_speech(text)
+        has_text = bool(formatted_text)
+        within_limit = (
+            len(formatted_text) <= self._max_text_length_spinbox.value()
+        )
         has_voice = (
             self._voice_combo.isEnabled()
             and self._selected_voice_id() is not None
@@ -472,6 +486,58 @@ class MainWindow(QMainWindow):
         self._set_feedback("Settings saved.")
         self._logger.info("Main window settings saved")
 
+    def _clear_local_data(self) -> None:
+        answer = QMessageBox.question(
+            self,
+            "Clear local data",
+            (
+                "Delete all Syllavox-managed settings, logs, temporary and "
+                "retained audio, downloaded voice models, and language data?\n\n"
+                "The application will close after cleanup. WAV files exported "
+                "to other locations will not be deleted."
+            ),
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        self._local_data_cleanup_requested = True
+
+        try:
+            if self._state_manager.state in {AppState.SPEAKING, AppState.PAUSED}:
+                self._speech_controller.stop()
+
+            for voice_id in self._backend_manager.loaded_voice_ids():
+                self._backend_manager.unload_voice(voice_id)
+        except Exception as exc:
+            self._local_data_cleanup_requested = False
+            QMessageBox.critical(
+                self,
+                "Clear local data failed",
+                f"Syllavox could not stop its active resources:\n{exc}",
+            )
+            return
+
+        shutdown_logging()
+        report = clear_local_data()
+
+        if not report.succeeded:
+            configure_logging()
+            self._local_data_cleanup_requested = False
+            QMessageBox.critical(
+                self,
+                "Clear local data failed",
+                (
+                    "Some Syllavox data could not be removed. Close any files "
+                    f"using the application data directory and try again.\n\n"
+                    f"{report.error}"
+                ),
+            )
+            return
+
+        QApplication.instance().quit()
+
     def _save_window_size_if_enabled(self) -> None:
         settings = self._settings_manager.settings
         window_settings = settings.setdefault("window", {})
@@ -481,6 +547,10 @@ class MainWindow(QMainWindow):
             window_settings["height"] = self.height()
 
     def closeEvent(self, event) -> None:  # noqa: N802
+        if self._local_data_cleanup_requested:
+            event.accept()
+            return
+
         self._write_controls_to_settings()
         self._save_window_size_if_enabled()
         self._settings_manager.save()

@@ -59,6 +59,12 @@ class SynthesisFailedError(TTSBackendError):
     pass
 
 
+class LanguageCompatibilityError(SynthesisFailedError):
+    """Raised when a voice's language phonemizer is unsupported by Piper."""
+
+    pass
+
+
 class InvalidSynthesisRequestError(TTSBackendError):
     """
     Raised when a synthesis request is invalid before synthesis begins.

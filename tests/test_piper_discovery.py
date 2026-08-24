@@ -1,6 +1,9 @@
 from pathlib import Path
 from typing import Any
 
+import pytest
+
+from syllavox.tts.errors import LanguageCompatibilityError
 from syllavox.tts.piper import PiperBackend
 
 
@@ -115,3 +118,30 @@ def test_piper_loads_chinese_resources_under_models_dir(
         "model": str(model_path),
         "download_dir": str(tmp_path),
     }
+
+
+def test_piper_reports_unsupported_language_phonemizer(
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> None:
+    model_path = tmp_path / "he_IL-test-medium.onnx"
+    config_path = tmp_path / "he_IL-test-medium.onnx.json"
+    model_path.write_bytes(b"fake model")
+    config_path.write_text(
+        '{"phoneme_type": "future-language-phonemizer"}',
+        encoding="utf-8",
+    )
+
+    backend = PiperBackend(models_dir=tmp_path)
+    monkeypatch.setattr(
+        backend,
+        "_supported_phoneme_types",
+        staticmethod(lambda: {"espeak", "hebrew", "pinyin", "text"}),
+    )
+
+    issue = backend.voice_compatibility_issue("he_IL-test-medium")
+
+    assert issue is not None
+    assert "future-language-phonemizer" in issue
+    with pytest.raises(LanguageCompatibilityError, match="future-language"):
+        backend.load_voice("he_IL-test-medium")

@@ -3,7 +3,7 @@
 Thank you for taking an interest in Syllavox. The project is a
 local text-to-speech application maintained as a small side project.
 
-Version 0.1.1 focuses on maintaining the portable Windows application, Piper
+Version 0.2.0 focuses on maintaining the portable Windows application, Piper
 voices, a shared local speech pipeline, browser-selected text, clipboard
 hotkeys, and a local API. Contributions should preserve that local-first
 behavior unless a change is explicitly discussed first.

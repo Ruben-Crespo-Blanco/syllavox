@@ -20,7 +20,7 @@ from syllavox.tts.diagnostic_models import (
     VoiceDiagnosticReport,
     VoiceDiagnosticResult,
 )
-from syllavox.tts.errors import VoiceNotFoundError
+from syllavox.tts.errors import LanguageCompatibilityError, VoiceNotFoundError
 from syllavox.tts.paths import get_piper_models_dir
 from syllavox.tts.piper import PiperBackend
 
@@ -50,6 +50,17 @@ def classify_failure(
 
     if isinstance(error, VoiceNotFoundError):
         return DiagnosticStatus.MISSING_MODEL_FILES
+
+    if isinstance(error, LanguageCompatibilityError) or any(
+        marker in message
+        for marker in (
+            "not a valid phoneme type",
+            "unexpected phoneme type",
+            "unsupported phoneme type",
+            "language compatibility",
+        )
+    ):
+        return DiagnosticStatus.LANGUAGE_COMPATIBILITY_FAILURE
 
     if any(
         marker in message
@@ -213,6 +224,18 @@ def diagnose_voice(
 
     phoneme_type = _config_string(config, "phoneme_type")
     expected_sample_rate = _config_audio_integer(config, "sample_rate")
+
+    compatibility_check = getattr(backend, "voice_compatibility_issue", None)
+    if callable(compatibility_check):
+        compatibility_issue = compatibility_check(voice_id)
+        if compatibility_issue:
+            return result(
+                DiagnosticStatus.LANGUAGE_COMPATIBILITY_FAILURE,
+                "preflight",
+                compatibility_issue,
+                phoneme_type=phoneme_type,
+                expected_sample_rate=expected_sample_rate,
+            )
 
     if phoneme_type == "pinyin" and not _has_resource_files(models_dir / "g2pW"):
         return result(

@@ -1,6 +1,6 @@
 {
-  "purpose": "Observation corpus for the text-formatting audit. No normalization rules are implied by this file.",
-  "current_shared_controller_behavior": "strip_outer_whitespace_only",
+  "purpose": "Regression corpus for v0.2.0 speech normalization. The expected_current_speech_text fields retain the v0.1.x behavior for comparison.",
+  "current_shared_controller_behavior": "normalize_for_speech_v0_2_0",
   "cases": [
     {
       "id": "outer-whitespace",

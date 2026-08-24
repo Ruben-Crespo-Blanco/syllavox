@@ -24,6 +24,7 @@ from syllavox.tts.base import (
 )
 from syllavox.tts.errors import InvalidSynthesisRequestError
 from syllavox.tts.manager import TTSBackendManager
+from syllavox.text_formatting import normalize_for_speech
 
 
 class SpeechController:
@@ -324,7 +325,7 @@ class SpeechController:
     @staticmethod
     def _normalize_text(text: str) -> str:
         """Normalize input text and reject empty requests consistently."""
-        normalized_text = text.strip()
+        normalized_text = normalize_for_speech(text)
 
         if not normalized_text:
             raise InvalidSynthesisRequestError("Text cannot be empty.")

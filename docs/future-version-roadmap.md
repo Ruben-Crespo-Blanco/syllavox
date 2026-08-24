@@ -2,7 +2,7 @@
 
 This roadmap maps planned development to proposed versions. The version
 assignments are planning targets, not commitments. The current public target
-is the Windows MVP, version 0.1.0.
+is the Windows MVP, version 0.2.0.
 
 ## Version plan
 

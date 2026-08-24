@@ -35,6 +35,7 @@ from syllavox.audio.player import (
     normalize_playback_value,
 )
 from syllavox.constants import DEFAULT_MAX_TEXT_LENGTH
+from syllavox.text_formatting import normalize_for_speech
 from syllavox.tts.base import VoiceInfo
 from syllavox.tts.catalog import format_language_label
 
@@ -223,9 +224,9 @@ class SpeechEditorWidget(QWidget):
 
     def update_character_count(self, maximum: int) -> None:
         """Update the visible character counter."""
-        text_length = len(self.text_edit.toPlainText())
+        text_length = len(normalize_for_speech(self.text_edit.toPlainText()))
         self.character_count_label.setText(
-            f"Characters: {text_length}/{maximum}"
+            f"Speech characters: {text_length}/{maximum}"
         )
 
     def set_playback_controls(
@@ -253,6 +254,8 @@ class SpeechEditorWidget(QWidget):
 class SettingsPanel(QGroupBox):
     """Settings controls and their mapping to the persisted settings schema."""
 
+    clear_local_data_requested = Signal()
+
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Settings", parent)
 
@@ -263,6 +266,9 @@ class SettingsPanel(QGroupBox):
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
         self.volume_value_label = QLabel()
         self.rate_spinbox = QDoubleSpinBox()
+        self.clear_local_data_button = QPushButton(
+            "Clear local data and quit"
+        )
 
         self.max_text_length_spinbox.setRange(100, 10000)
         self.max_text_length_spinbox.setSingleStep(100)
@@ -275,6 +281,9 @@ class SettingsPanel(QGroupBox):
         self.hotkey_action_combo.addItem("Speak clipboard", "speak_clipboard")
         self.hotkey_action_combo.addItem("Open window", "open_window")
         self.hotkey_action_combo.setEnabled(False)
+        self.clear_local_data_button.clicked.connect(
+            self.clear_local_data_requested
+        )
 
         form = QFormLayout()
         form.addRow("", self.start_minimized_checkbox)
@@ -287,6 +296,7 @@ class SettingsPanel(QGroupBox):
         volume_layout.addWidget(self.volume_value_label)
         form.addRow("Volume:", volume_layout)
         form.addRow("Speed:", self.rate_spinbox)
+        form.addRow("Privacy:", self.clear_local_data_button)
         self.setLayout(form)
 
     def load_settings(self, settings: dict[str, Any]) -> None:

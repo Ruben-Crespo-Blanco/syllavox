@@ -162,3 +162,13 @@ def test_classify_failure_distinguishes_dependency_and_model_errors() -> None:
         )
         == DiagnosticStatus.MODEL_FAILURE
     )
+
+
+def test_classify_failure_identifies_language_compatibility_errors() -> None:
+    assert (
+        classify_failure(
+            RuntimeError("hebrew is not a valid phoneme type"),
+            phase="load",
+        )
+        == DiagnosticStatus.LANGUAGE_COMPATIBILITY_FAILURE
+    )

@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import builtins
 import importlib
+import json
 import wave
 from contextlib import contextmanager, nullcontext
 from pathlib import Path
@@ -33,6 +34,7 @@ from syllavox.tts.base import (
     VoiceInfo,
 )
 from syllavox.tts.errors import (
+    LanguageCompatibilityError,
     SynthesisFailedError,
     VoiceNotFoundError,
 )
@@ -169,6 +171,19 @@ def _uses_pinyin_phonemizer(voice: Any) -> bool:
     return getattr(phoneme_type, "value", phoneme_type) == "pinyin"
 
 
+def _looks_like_language_compatibility_error(error: BaseException) -> bool:
+    """Recognize Piper errors caused by an unsupported language phonemizer."""
+    message = str(error).lower()
+    return any(
+        marker in message
+        for marker in (
+            "not a valid phoneme type",
+            "unexpected phoneme type",
+            "unsupported phoneme type",
+        )
+    )
+
+
 class PiperBackend(TTSBackend, VoiceMemoryBackend):
     """
     Piper TTS backend using the Python API.
@@ -247,6 +262,16 @@ class PiperBackend(TTSBackend, VoiceMemoryBackend):
             f"{valid_count} voice(s) available. "
             f"{loaded_count} loaded."
         )
+
+        compatibility_count = sum(
+            self.voice_compatibility_issue(model_path.stem) is not None
+            for model_path in model_paths
+        )
+        if compatibility_count:
+            details += (
+                f" {compatibility_count} voice(s) require language "
+                "compatibility attention."
+            )
 
         if invalid_count > 0:
             details += (
@@ -408,8 +433,8 @@ class PiperBackend(TTSBackend, VoiceMemoryBackend):
             )
 
     def load_voice(
-    self,
-    voice_id: str,
+        self,
+        voice_id: str,
     ) -> Any:
         """
         Load and cache a Piper voice.
@@ -430,6 +455,10 @@ class PiperBackend(TTSBackend, VoiceMemoryBackend):
                 f"Piper config file not found for voice: {voice_id}"
             )
 
+        compatibility_issue = self.voice_compatibility_issue(voice_id)
+        if compatibility_issue:
+            raise LanguageCompatibilityError(compatibility_issue)
+
         PiperVoice = self._import_piper_voice()
 
         try:
@@ -443,7 +472,18 @@ class PiperBackend(TTSBackend, VoiceMemoryBackend):
                     # Creating the phonemizer here moves the expensive g2pW
                     # initialization into the explicit Load action.
                     voice.phonemize("")
+        except LanguageCompatibilityError:
+            raise
         except Exception as exc:
+            if _looks_like_language_compatibility_error(exc):
+                phoneme_type = self._read_phoneme_type(config_path)
+                raise LanguageCompatibilityError(
+                    "Piper could not load voice "
+                    f"{voice_id} with phonemizer {phoneme_type or 'unknown'}; "
+                    "the language configuration is incompatible with the "
+                    f"installed Piper runtime. Original error: {exc}"
+                ) from exc
+
             raise SynthesisFailedError(
                 f"Failed to load Piper voice {voice_id}: {exc}"
             ) from exc
@@ -471,13 +511,12 @@ class PiperBackend(TTSBackend, VoiceMemoryBackend):
         Return True if the voice is currently loaded in memory.
         """
         return voice_id in self._loaded_voices
-    
+
     def loaded_voice_ids(self) -> list[str]:
         """
         Return voice IDs currently loaded in memory.
         """
         return sorted(self._loaded_voices.keys())
-
 
     def loaded_voice_count(self) -> int:
         """
@@ -485,6 +524,56 @@ class PiperBackend(TTSBackend, VoiceMemoryBackend):
         """
         return len(self._loaded_voices)
 
+
+    def voice_compatibility_issue(self, voice_id: str) -> str | None:
+        """Return a preflight language-compatibility issue, if one is known."""
+        config_path = self._get_config_path(self._get_model_path(voice_id))
+
+        try:
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return None
+
+        if not isinstance(config, dict):
+            return None
+
+        phoneme_type = config.get("phoneme_type")
+        if not isinstance(phoneme_type, str):
+            return None
+
+        supported_types = self._supported_phoneme_types()
+        if supported_types and phoneme_type not in supported_types:
+            supported_text = ", ".join(sorted(supported_types))
+            return (
+                f"Piper runtime does not support phonemizer '{phoneme_type}' "
+                f"for voice {voice_id}. Supported phonemizers: {supported_text}."
+            )
+
+        return None
+
+    @staticmethod
+    def _supported_phoneme_types() -> set[str]:
+        """Read supported phonemizers from the installed Piper runtime."""
+        try:
+            from piper.config import PhonemeType
+        except ImportError:
+            return set()
+
+        return {
+            member.value
+            for member in PhonemeType
+            if isinstance(getattr(member, "value", None), str)
+        }
+
+    @staticmethod
+    def _read_phoneme_type(config_path: Path) -> str | None:
+        try:
+            config = json.loads(config_path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            return None
+
+        value = config.get("phoneme_type") if isinstance(config, dict) else None
+        return value if isinstance(value, str) else None
 
     def _import_piper_voice(self) -> Any:
         """
