@@ -159,6 +159,40 @@ class HotkeyManager:
 
         return binding.display_name
 
+    def reconfigure(self, hotkey: str) -> str:
+        """Replace the active shortcut and restore it if the new one fails."""
+        previous_hotkey = self.current_hotkey()
+        previous_status = self._status
+
+        try:
+            return self.register(hotkey)
+        except (HotkeyRegistrationError, HotkeyUnsupportedPlatformError) as exc:
+            if previous_hotkey and previous_status.registered:
+                try:
+                    restored_hotkey = self.register(previous_hotkey)
+                except (
+                    HotkeyRegistrationError,
+                    HotkeyUnsupportedPlatformError,
+                ) as restore_exc:
+                    self._status = HotkeyStatus(
+                        enabled=previous_status.enabled,
+                        registered=False,
+                        key=previous_hotkey,
+                        message=(
+                            f"New shortcut failed: {exc} Previous shortcut "
+                            f"could not be restored: {restore_exc}"
+                        ),
+                    )
+                else:
+                    self._status = HotkeyStatus(
+                        enabled=previous_status.enabled,
+                        registered=True,
+                        key=restored_hotkey,
+                        message=f"Previous shortcut kept: {exc}",
+                    )
+
+            raise
+
     def unregister(self) -> None:
         """
         Unregister the current global hotkey.

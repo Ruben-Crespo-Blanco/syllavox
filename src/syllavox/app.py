@@ -20,7 +20,12 @@ from .audio.player import (
     normalize_playback_value,
 )
 from .audio.qt_bridge import QtAudioBridge
-from .constants import DEFAULT_MAX_TEXT_LENGTH, PRODUCT_NAME
+from .constants import (
+    DEFAULT_MAX_TEXT_LENGTH,
+    DEFAULT_READ_HOTKEY,
+    MAX_CONFIGURABLE_TEXT_LENGTH,
+    PRODUCT_NAME,
+)
 from .hotkey.errors import (
     HotkeyActionError,
     HotkeyRegistrationError,
@@ -40,6 +45,7 @@ from .settings import SettingsManager
 from .speech.controller import SpeechController
 from .state import StateManager
 from .tray.tray_app import TrayApp
+from .tray.theme import apply_app_theme
 from .tray.window import MainWindow
 from .tts.manager import TTSBackendManager
 from .tts.catalog import PiperVoiceCatalog
@@ -121,10 +127,14 @@ def _create_speech_services(
     """Create the Piper backend, backend manager, and shared speech service."""
     piper_backend = PiperBackend()
 
-    max_text_length = int(
+    configured_max_text_length = int(
         settings_manager.settings
         .get("tts", {})
         .get("max_text_length", DEFAULT_MAX_TEXT_LENGTH)
+    )
+    max_text_length = min(
+        configured_max_text_length,
+        MAX_CONFIGURABLE_TEXT_LENGTH,
     )
     default_voice_id = settings_manager.settings.get("tts", {}).get("voice_id")
     playback_settings = settings_manager.settings.get("playback", {})
@@ -248,6 +258,7 @@ def _prepare_startup_context() -> _StartupContext:
     qt_app = QApplication(sys.argv)
     qt_app.setApplicationName(PRODUCT_NAME)
     qt_app.setQuitOnLastWindowClosed(False)
+    apply_app_theme(qt_app)
 
     return _StartupContext(
         qt_app=qt_app,
@@ -324,7 +335,7 @@ def _configure_hotkey(runtime: ApplicationRuntime) -> None:
     hotkey_settings = runtime.settings_manager.settings.get("hotkey", {})
 
     hotkey_enabled = bool(hotkey_settings.get("enabled", True))
-    hotkey_text = str(hotkey_settings.get("key", "Ctrl+Alt+R"))
+    hotkey_text = str(hotkey_settings.get("key", DEFAULT_READ_HOTKEY))
     hotkey_action = str(
         hotkey_settings.get(
             "action",
@@ -346,6 +357,9 @@ def _configure_hotkey(runtime: ApplicationRuntime) -> None:
 
     if not hotkey_enabled:
         runtime.hotkey_manager.set_disabled()
+        runtime.main_window.update_hotkey_status(
+            runtime.hotkey_manager.status()
+        )
         logger.info("Global hotkey disabled in settings")
         return
 
@@ -362,6 +376,9 @@ def _configure_hotkey(runtime: ApplicationRuntime) -> None:
         )
 
     except HotkeyRegistrationError as exc:
+        runtime.main_window.update_hotkey_status(
+            runtime.hotkey_manager.status()
+        )
         logger.warning(
             "Global hotkey registration failed. "
             "The application will continue without a global hotkey: %s",
@@ -373,6 +390,9 @@ def _configure_hotkey(runtime: ApplicationRuntime) -> None:
         )
 
     except HotkeyUnsupportedPlatformError as exc:
+        runtime.main_window.update_hotkey_status(
+            runtime.hotkey_manager.status()
+        )
         logger.warning(
             "Global hotkey is unavailable on this platform: %s",
             exc,
@@ -380,6 +400,16 @@ def _configure_hotkey(runtime: ApplicationRuntime) -> None:
         runtime.tray_app.show_warning(
             "Global hotkey unavailable",
             f"{exc}\n\nThe application will continue normally.",
+        )
+
+
+def _reconfigure_hotkey(runtime: ApplicationRuntime, hotkey: str) -> None:
+    """Apply a new shortcut from the running Settings panel."""
+    try:
+        runtime.hotkey_manager.reconfigure(hotkey)
+    finally:
+        runtime.main_window.update_hotkey_status(
+            runtime.hotkey_manager.status()
         )
 
 
@@ -405,7 +435,7 @@ def _create_runtime() -> ApplicationRuntime:
 
     api_server = ApiServer(context=api_context)
 
-    return ApplicationRuntime(
+    runtime = ApplicationRuntime(
         qt_app=context.qt_app,
         logger=context.logger,
         settings_manager=context.settings_manager,
@@ -419,6 +449,11 @@ def _create_runtime() -> ApplicationRuntime:
         api_server=api_server,
         instance_ipc=ui_services.instance_ipc,
     )
+
+    runtime.main_window.set_hotkey_reconfigure_callback(
+        lambda hotkey: _reconfigure_hotkey(runtime, hotkey)
+    )
+    return runtime
 
 
 def bootstrap() -> int:

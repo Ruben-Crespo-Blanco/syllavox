@@ -2,7 +2,7 @@
 
 This roadmap maps planned development to proposed versions. The version
 assignments are planning targets, not commitments. The current public target
-is the Windows MVP, version 0.2.0.
+is the Windows MVP, version 0.3.0.
 
 ## Version plan
 
@@ -11,14 +11,22 @@ is the Windows MVP, version 0.2.0.
 | **0.1.0** | Windows MVP | Portable Windows build, Piper voices, voice installation/deletion, hotkey, local API, browser extensions, diagnostics, temporary WAV cleanup, public documentation, and MIT release. |
 | **0.1.1** | Maintenance | Fix issues found during manual and early public testing; improve packaging, documentation, and voice-specific bugs without adding major features. |
 | **0.2.0** | Compatibility and privacy | Investigate other language-specific Piper failures, improve text/read formatting, and add complete local-data cleanup for logs, settings, retained WAVs, models, and `g2pW` data. |
-| **0.3.0** | UI/UX | Overhaul the front end, improve layout and visual design, clarify voice/model management, and improve feedback during loading, synthesis, and errors. |
+| **0.3.0** | UI/UX | Remodel the UI with a minimal, smooth, Apple-inspired visual system; redesign the Syllavox icon and application windows; clarify voice/model management; improve feedback during loading, synthesis, and errors; and let users change the global read hotkey. |
 | **0.4.0** | Additional TTS backend | Add Kokoro TTS support, including voice discovery, installation, selection, loading/unloading, deletion, and backend-specific diagnostics. |
 | **0.5.0** | macOS adaptation | Add macOS platform services, global hotkeys, single-instance handling, tray behavior, audio validation, packaging, and manual testing. |
 | **0.6.0** | Linux adaptation | Add Linux platform services, hotkeys, tray integration, packaging, distribution testing, and documented supported environments. |
 | **1.0.0** | Stable multi-platform release | Consolidate supported platforms, resolve major compatibility issues, stabilize APIs and settings, add a complete user-facing installer, complete release documentation, and establish a reliable feedback and maintenance process. |
 
-The existing **0.3.0 UI/UX** phase remains limited to general front-end polish,
-voice/model management, and clearer loading, synthesis, and error feedback.
+The existing **0.3.0 UI/UX** phase remains focused on a minimal, smooth, and
+original visual language inspired by Apple's restraint, spacing, hierarchy, and
+motion. It includes an icon refresh, redesigned application windows and
+settings surfaces, clearer voice/model management, improved loading, synthesis,
+and error feedback, and a user-configurable global read hotkey. The visual
+redesign must remain recognizably Syllavox and must not copy Apple's assets or
+branding. The hotkey work should retain `Ctrl+Alt+R` as the default, use the
+existing parser and registration layer, persist the selected shortcut, and
+explain invalid or unavailable shortcuts without leaving the application with a
+stale or silently changed binding.
 Reading sessions and a dedicated accessibility-first reading interface are
 explicitly outside the numbered roadmap and are deferred to an unassigned
 future phase after 1.0.0.

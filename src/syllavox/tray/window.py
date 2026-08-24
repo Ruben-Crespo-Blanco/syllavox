@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
+    QHBoxLayout,
     QLabel,
     QMessageBox,
     QMainWindow,
@@ -16,7 +19,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from syllavox.constants import PRODUCT_NAME
+from syllavox.constants import DEFAULT_READ_HOTKEY, PRODUCT_NAME
 from syllavox.hotkey.manager import HotkeyStatus
 from syllavox.local_data import clear_local_data
 from syllavox.logging_config import configure_logging, get_logger, shutdown_logging
@@ -40,10 +43,10 @@ from syllavox.tray.window_widgets import (
 )
 
 
-DEFAULT_WINDOW_WIDTH = 640
-DEFAULT_WINDOW_HEIGHT = 520
-MIN_WINDOW_WIDTH = 320
-MIN_WINDOW_HEIGHT = 240
+DEFAULT_WINDOW_WIDTH = 720
+DEFAULT_WINDOW_HEIGHT = 720
+MIN_WINDOW_WIDTH = 540
+MIN_WINDOW_HEIGHT = 600
 MAX_WINDOW_WIDTH = 3000
 MAX_WINDOW_HEIGHT = 2000
 
@@ -70,16 +73,26 @@ class MainWindow(QMainWindow):
         )
         self._logger = get_logger(__name__)
         self._voices: list[VoiceInfo] = []
+        self._hotkey_reconfigure_callback: Callable[[str], None] | None = None
 
         self._state_relay = QtCallbackRelay(self._on_state_changed)
         self._state_manager.add_listener(self._state_relay.dispatch)
 
         self.setWindowTitle(PRODUCT_NAME)
+        self._set_window_icon()
 
         self._title_label = QLabel(PRODUCT_NAME)
-        self._title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self._title_label.setObjectName("pageTitle")
+        self._title_label.setAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
+        )
+        self._subtitle_label = QLabel("Local reading, quietly handled.")
+        self._subtitle_label.setObjectName("pageSubtitle")
+        self._subtitle_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self._state_label = QLabel()
+        self._state_label.setObjectName("stateLabel")
         self._hotkey_status_label = QLabel("Hotkey: not initialized")
+        self._hotkey_status_label.setObjectName("hotkeyStatus")
 
         self._voice_selector = VoiceSelectorWidget()
         self._voice_combo = self._voice_selector.combo
@@ -107,10 +120,12 @@ class MainWindow(QMainWindow):
             self._settings_panel.max_text_length_spinbox
         )
         self._hotkey_action_combo = self._settings_panel.hotkey_action_combo
+        self._hotkey_edit = self._settings_panel.hotkey_edit
         self._volume_slider = self._settings_panel.volume_slider
         self._volume_value_label = self._settings_panel.volume_value_label
         self._rate_spinbox = self._settings_panel.rate_spinbox
         self._save_settings_button = QPushButton("Save settings")
+        self._save_settings_button.setObjectName("primaryButton")
         self._clear_local_data_button = (
             self._settings_panel.clear_local_data_button
         )
@@ -120,18 +135,53 @@ class MainWindow(QMainWindow):
         self._load_voices()
         self._connect_ui_signals()
 
-        layout = QVBoxLayout()
-        layout.addWidget(self._title_label)
-        layout.addWidget(self._state_label)
-        layout.addWidget(self._hotkey_status_label)
+        header_layout = QHBoxLayout()
+        header_icon = QLabel()
+        header_icon.setFixedSize(56, 56)
+        icon_path = self._bundled_icon_path()
+        if icon_path.is_file():
+            pixmap = QPixmap(str(icon_path))
+            if not pixmap.isNull():
+                header_icon.setPixmap(
+                    pixmap.scaled(
+                        52,
+                        52,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation,
+                    )
+                )
+
+        title_layout = QVBoxLayout()
+        eyebrow_label = QLabel("OFFLINE TEXT TO SPEECH")
+        eyebrow_label.setObjectName("eyebrowLabel")
+        title_layout.addWidget(eyebrow_label)
+        title_layout.addWidget(self._title_label)
+        title_layout.addWidget(self._subtitle_label)
+        header_layout.addWidget(header_icon)
+        header_layout.addLayout(title_layout)
+        header_layout.addStretch()
+
+        status_layout = QHBoxLayout()
+        status_layout.addWidget(self._state_label)
+        status_layout.addWidget(self._hotkey_status_label)
+
+        save_layout = QHBoxLayout()
+        save_layout.addStretch()
+        save_layout.addWidget(self._save_settings_button)
+
+        page = QWidget()
+        page.setObjectName("appPage")
+        layout = QVBoxLayout(page)
+        layout.setContentsMargins(24, 22, 24, 24)
+        layout.setSpacing(12)
+        layout.addLayout(header_layout)
+        layout.addLayout(status_layout)
         layout.addWidget(self._voice_selector)
         layout.addWidget(self._speech_editor)
         layout.addWidget(self._settings_panel)
-        layout.addWidget(self._save_settings_button)
+        layout.addLayout(save_layout)
 
-        container = QWidget()
-        container.setLayout(layout)
-        self.setCentralWidget(container)
+        self.setCentralWidget(page)
 
         self._restore_window_size()
         self.refresh_state_display()
@@ -152,6 +202,9 @@ class MainWindow(QMainWindow):
         self._stop_button.clicked.connect(self._stop_speaking)
         self._clear_button.clicked.connect(self._clear_text)
         self._save_settings_button.clicked.connect(self._save_settings)
+        self._settings_panel.hotkey_apply_requested.connect(
+            self._save_settings
+        )
         self._settings_panel.clear_local_data_requested.connect(
             self._clear_local_data
         )
@@ -161,6 +214,24 @@ class MainWindow(QMainWindow):
         )
         self._volume_slider.valueChanged.connect(self._on_volume_changed)
         self._rate_spinbox.valueChanged.connect(self._on_rate_changed)
+
+    def set_hotkey_reconfigure_callback(
+        self,
+        callback: Callable[[str], None],
+    ) -> None:
+        """Connect settings saves to the live global-hotkey manager."""
+        self._hotkey_reconfigure_callback = callback
+
+    @staticmethod
+    def _bundled_icon_path() -> Path:
+        return Path(__file__).resolve().parent.parent / "assets" / "tray_icon.png"
+
+    def _set_window_icon(self) -> None:
+        icon_path = self._bundled_icon_path()
+        if icon_path.is_file():
+            icon = QIcon(str(icon_path))
+            if not icon.isNull():
+                self.setWindowIcon(icon)
 
     def _load_settings_into_controls(self) -> None:
         self._settings_panel.load_settings(self._settings_manager.settings)
@@ -480,10 +551,35 @@ class MainWindow(QMainWindow):
         self._speech_editor.set_feedback(message)
 
     def _save_settings(self) -> None:
+        current_hotkey = str(
+            self._settings_manager.settings.get("hotkey", {}).get(
+                "key",
+                DEFAULT_READ_HOTKEY,
+            )
+        )
+        selected_hotkey = self._hotkey_edit.hotkey()
+
+        if (
+            selected_hotkey != current_hotkey
+            and self._hotkey_reconfigure_callback is not None
+        ):
+            try:
+                self._hotkey_reconfigure_callback(selected_hotkey)
+            except Exception as exc:
+                self._hotkey_edit.set_hotkey(current_hotkey)
+                self._set_feedback(f"Hotkey was not changed: {exc}")
+                self._logger.warning(
+                    "Hotkey reconfiguration failed; settings were not saved: %s",
+                    exc,
+                )
+                return
+
         self._write_controls_to_settings()
         self._save_window_size_if_enabled()
         self._settings_manager.save()
-        self._set_feedback("Settings saved.")
+        self._set_feedback(
+            f"Settings saved. Read hotkey: {self._hotkey_edit.hotkey()}"
+        )
         self._logger.info("Main window settings saved")
 
     def _clear_local_data(self) -> None:

@@ -7,6 +7,7 @@ from dataclasses import dataclass
 
 LANGUAGE_NAMES = {
     "ar": "Arabic",
+    "bg": "Bulgarian",
     "ca": "Catalan",
     "cs": "Czech",
     "cy": "Welsh",
@@ -19,12 +20,15 @@ LANGUAGE_NAMES = {
     "fi": "Finnish",
     "fr": "French",
     "hu": "Hungarian",
+    "he": "Hebrew",
     "hi": "Hindi",
     "id": "Indonesian",
     "is": "Icelandic",
     "it": "Italian",
+    "ja": "Japanese",
     "ka": "Georgian",
     "kk": "Kazakh",
+    "ko": "Korean",
     "lb": "Luxembourgish",
     "lv": "Latvian",
     "ml": "Malayalam",
@@ -54,7 +58,7 @@ def format_language_label(
     country_name: str | None = None,
 ) -> str:
     """Return a readable locale label while preserving its exact code."""
-    family = language_code.split("_", 1)[0].lower()
+    family = language_code.replace("-", "_").split("_", 1)[0].lower()
     readable_language = language_name or LANGUAGE_NAMES.get(family, family.upper())
 
     if country_name:

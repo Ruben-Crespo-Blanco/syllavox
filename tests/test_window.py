@@ -300,3 +300,38 @@ def test_window_clear_local_data_removes_app_data_and_skips_close_save(
     assert window._local_data_cleanup_requested is True
 
     window.close()
+
+
+def test_window_reconfigures_and_saves_read_hotkey(
+    tmp_path: Path,
+    qt_app: QApplication,
+) -> None:
+    window, settings_manager, _, _ = make_window(tmp_path, qt_app)
+    requested: list[str] = []
+    window.set_hotkey_reconfigure_callback(requested.append)
+    window._hotkey_edit.set_hotkey("Ctrl+Shift+R")
+
+    window._save_settings()
+
+    assert requested == ["Ctrl+Shift+R"]
+    assert settings_manager.settings["hotkey"]["key"] == "Ctrl+Shift+R"
+    window.close()
+
+
+def test_window_keeps_settings_when_hotkey_reconfiguration_fails(
+    tmp_path: Path,
+    qt_app: QApplication,
+) -> None:
+    window, settings_manager, _, _ = make_window(tmp_path, qt_app)
+
+    def reject_hotkey(hotkey: str) -> None:
+        raise ValueError(f"Shortcut unavailable: {hotkey}")
+
+    window.set_hotkey_reconfigure_callback(reject_hotkey)
+    window._hotkey_edit.set_hotkey("Ctrl+Shift+R")
+
+    window._save_settings()
+
+    assert settings_manager.settings["hotkey"]["key"] == "Ctrl+Alt+R"
+    assert "Hotkey was not changed" in window._feedback_label.text()
+    window.close()

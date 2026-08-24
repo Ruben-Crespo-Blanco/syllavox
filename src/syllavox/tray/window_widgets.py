@@ -10,7 +10,7 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QStandardItem, QStandardItemModel
+from PySide6.QtGui import QKeyEvent, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QGroupBox,
     QHBoxLayout,
     QLabel,
+    QLineEdit,
     QPlainTextEdit,
     QPushButton,
     QSlider,
@@ -34,10 +35,121 @@ from syllavox.audio.player import (
     MIN_PLAYBACK_RATE,
     normalize_playback_value,
 )
-from syllavox.constants import DEFAULT_MAX_TEXT_LENGTH
+from syllavox.constants import (
+    DEFAULT_MAX_TEXT_LENGTH,
+    DEFAULT_READ_HOTKEY,
+    MAX_CONFIGURABLE_TEXT_LENGTH,
+)
+from syllavox.hotkey.errors import HotkeyRegistrationError
+from syllavox.hotkey.parser import parse_hotkey
 from syllavox.text_formatting import normalize_for_speech
 from syllavox.tts.base import VoiceInfo
 from syllavox.tts.catalog import format_language_label
+
+
+_SPECIAL_KEY_NAMES = {
+    Qt.Key.Key_Backspace.value: "Backspace",
+    Qt.Key.Key_Tab.value: "Tab",
+    Qt.Key.Key_Return.value: "Enter",
+    Qt.Key.Key_Enter.value: "Enter",
+    Qt.Key.Key_Escape.value: "Escape",
+    Qt.Key.Key_Space.value: "Space",
+    Qt.Key.Key_PageUp.value: "PageUp",
+    Qt.Key.Key_PageDown.value: "PageDown",
+    Qt.Key.Key_End.value: "End",
+    Qt.Key.Key_Home.value: "Home",
+    Qt.Key.Key_Left.value: "Left",
+    Qt.Key.Key_Up.value: "Up",
+    Qt.Key.Key_Right.value: "Right",
+    Qt.Key.Key_Down.value: "Down",
+    Qt.Key.Key_Insert.value: "Insert",
+    Qt.Key.Key_Delete.value: "Delete",
+}
+
+
+class HotkeyEdit(QLineEdit):
+    """Capture a global shortcut using the application's parser grammar."""
+
+    hotkey_changed = Signal(str)
+    validation_changed = Signal(str)
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("hotkeyEditor")
+        self.setReadOnly(True)
+        self.setPlaceholderText("Press a shortcut…")
+        self.setToolTip("Click here, then press a modifier plus one key.")
+        self.set_hotkey(DEFAULT_READ_HOTKEY)
+
+    def hotkey(self) -> str:
+        """Return the currently displayed canonical shortcut."""
+        return self.text()
+
+    def set_hotkey(self, hotkey: str) -> bool:
+        """Set and validate a canonical shortcut string."""
+        try:
+            binding = parse_hotkey(hotkey)
+        except HotkeyRegistrationError as exc:
+            self.validation_changed.emit(str(exc))
+            return False
+
+        self.setText(binding.display_name)
+        self.validation_changed.emit("")
+        return True
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:  # noqa: N802
+        if event.isAutoRepeat():
+            return
+
+        key_name = self._key_name(event.key())
+        if key_name is None:
+            self.validation_changed.emit(
+                "That key is not supported. Use a letter, number, function, "
+                "or named navigation key."
+            )
+            return
+
+        shortcut = self._shortcut_text(event, key_name)
+        if shortcut is None:
+            self.validation_changed.emit(
+                "Global shortcuts must include Ctrl, Alt, Shift, or Win."
+            )
+            return
+
+        if self.set_hotkey(shortcut):
+            self.hotkey_changed.emit(self.hotkey())
+
+    @staticmethod
+    def _key_name(key: int) -> str | None:
+        if Qt.Key.Key_A.value <= key <= Qt.Key.Key_Z.value:
+            return chr(key)
+
+        if Qt.Key.Key_0.value <= key <= Qt.Key.Key_9.value:
+            return chr(key)
+
+        if Qt.Key.Key_F1.value <= key <= Qt.Key.Key_F24.value:
+            return f"F{key - Qt.Key.Key_F1.value + 1}"
+
+        return _SPECIAL_KEY_NAMES.get(key)
+
+    @staticmethod
+    def _shortcut_text(event: QKeyEvent, key_name: str) -> str | None:
+        modifiers = event.modifiers()
+        modifier_names: list[str] = []
+
+        if modifiers & Qt.KeyboardModifier.ControlModifier:
+            modifier_names.append("Ctrl")
+        if modifiers & Qt.KeyboardModifier.AltModifier:
+            modifier_names.append("Alt")
+        if modifiers & Qt.KeyboardModifier.ShiftModifier:
+            modifier_names.append("Shift")
+        if modifiers & Qt.KeyboardModifier.MetaModifier:
+            modifier_names.append("Win")
+
+        if not modifier_names:
+            return None
+
+        return "+".join([*modifier_names, key_name])
 
 
 class VoiceSelectorWidget(QWidget):
@@ -49,6 +161,7 @@ class VoiceSelectorWidget(QWidget):
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
+        self.setObjectName("card")
 
         self.combo = QComboBox()
         self.combo.setObjectName("voiceSelector")
@@ -194,8 +307,11 @@ class SpeechEditorWidget(QWidget):
         super().__init__(parent)
 
         self.text_edit = QPlainTextEdit()
+        self.setObjectName("card")
+        self.text_edit.setObjectName("speechText")
         self.text_edit.setPlaceholderText("Enter text to read aloud…")
         self.character_count_label = QLabel()
+        self.character_count_label.setObjectName("characterCount")
 
         self.speak_button = QPushButton("Speak")
         self.export_button = QPushButton("Export WAV...")
@@ -203,7 +319,12 @@ class SpeechEditorWidget(QWidget):
         self.stop_button = QPushButton("Stop")
         self.clear_button = QPushButton("Clear")
         self.feedback_label = QLabel()
+        self.feedback_label.setObjectName("feedbackLabel")
         self.feedback_label.setWordWrap(True)
+
+        self.speak_button.setObjectName("accentButton")
+        self.export_button.setObjectName("primaryButton")
+        self.text_edit.setMinimumHeight(210)
 
         button_layout = QHBoxLayout()
         for button in (
@@ -255,14 +376,29 @@ class SettingsPanel(QGroupBox):
     """Settings controls and their mapping to the persisted settings schema."""
 
     clear_local_data_requested = Signal()
+    hotkey_apply_requested = Signal()
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__("Settings", parent)
+        self.setObjectName("card")
 
         self.start_minimized_checkbox = QCheckBox("Start minimized to tray")
         self.remember_window_checkbox = QCheckBox("Remember window size")
         self.max_text_length_spinbox = QSpinBox()
         self.hotkey_action_combo = QComboBox()
+        self.hotkey_edit = HotkeyEdit()
+        self.reset_hotkey_button = QPushButton("Reset")
+        self.reset_hotkey_button.setObjectName("quietButton")
+        self.apply_hotkey_button = QPushButton("Apply changes")
+        self.apply_hotkey_button.setObjectName("accentButton")
+        self.hotkey_hint_label = QLabel(
+            "Use Ctrl, Alt, Shift, or Win plus one supported key."
+        )
+        self.hotkey_hint_label.setObjectName("sectionHint")
+        self.hotkey_error_label = QLabel()
+        self.hotkey_error_label.setObjectName("fieldError")
+        self.hotkey_error_label.setWordWrap(True)
+        self.hotkey_error_label.hide()
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
         self.volume_value_label = QLabel()
         self.rate_spinbox = QDoubleSpinBox()
@@ -270,7 +406,10 @@ class SettingsPanel(QGroupBox):
             "Clear local data and quit"
         )
 
-        self.max_text_length_spinbox.setRange(100, 10000)
+        self.max_text_length_spinbox.setRange(
+            100,
+            MAX_CONFIGURABLE_TEXT_LENGTH,
+        )
         self.max_text_length_spinbox.setSingleStep(100)
         self.volume_slider.setRange(0, 100)
         self.rate_spinbox.setRange(MIN_PLAYBACK_RATE, MAX_PLAYBACK_RATE)
@@ -281,6 +420,15 @@ class SettingsPanel(QGroupBox):
         self.hotkey_action_combo.addItem("Speak clipboard", "speak_clipboard")
         self.hotkey_action_combo.addItem("Open window", "open_window")
         self.hotkey_action_combo.setEnabled(False)
+        self.reset_hotkey_button.clicked.connect(
+            lambda: self.hotkey_edit.set_hotkey(DEFAULT_READ_HOTKEY)
+        )
+        self.apply_hotkey_button.clicked.connect(
+            self.hotkey_apply_requested.emit
+        )
+        self.hotkey_edit.validation_changed.connect(
+            self._show_hotkey_validation
+        )
         self.clear_local_data_button.clicked.connect(
             self.clear_local_data_requested
         )
@@ -289,7 +437,14 @@ class SettingsPanel(QGroupBox):
         form.addRow("", self.start_minimized_checkbox)
         form.addRow("", self.remember_window_checkbox)
         form.addRow("Max text length:", self.max_text_length_spinbox)
-        form.addRow("Hotkey action:", self.hotkey_action_combo)
+
+        hotkey_layout = QHBoxLayout()
+        hotkey_layout.addWidget(self.hotkey_edit)
+        hotkey_layout.addWidget(self.reset_hotkey_button)
+        hotkey_layout.addWidget(self.apply_hotkey_button)
+        form.addRow("Read hotkey:", hotkey_layout)
+        form.addRow("", self.hotkey_hint_label)
+        form.addRow("", self.hotkey_error_label)
 
         volume_layout = QHBoxLayout()
         volume_layout.addWidget(self.volume_slider)
@@ -320,6 +475,16 @@ class SettingsPanel(QGroupBox):
         hotkey_action = hotkey_settings.get("action", "speak_clipboard")
         index = self.hotkey_action_combo.findData(hotkey_action)
         self.hotkey_action_combo.setCurrentIndex(index if index >= 0 else 0)
+
+        configured_hotkey = hotkey_settings.get(
+            "key",
+            DEFAULT_READ_HOTKEY,
+        )
+        if not self.hotkey_edit.set_hotkey(str(configured_hotkey)):
+            self.hotkey_edit.set_hotkey(DEFAULT_READ_HOTKEY)
+            self._show_hotkey_validation(
+                "The saved shortcut was invalid; the default was restored."
+            )
 
         volume = normalize_playback_value(
             playback_settings.get("volume", DEFAULT_PLAYBACK_VOLUME),
@@ -358,8 +523,18 @@ class SettingsPanel(QGroupBox):
         tts_settings["max_text_length"] = self.max_text_length_spinbox.value()
         tts_settings["voice_id"] = voice_id
         hotkey_settings["action"] = self.hotkey_action_combo.currentData()
+        hotkey_settings["key"] = self.hotkey_edit.hotkey()
         playback_settings["volume"] = self.volume_slider.value() / 100
         playback_settings["rate"] = self.rate_spinbox.value()
 
+    def _show_hotkey_validation(self, message: str) -> None:
+        self.hotkey_error_label.setText(message)
+        self.hotkey_error_label.setVisible(bool(message))
 
-__all__ = ["SettingsPanel", "SpeechEditorWidget", "VoiceSelectorWidget"]
+
+__all__ = [
+    "HotkeyEdit",
+    "SettingsPanel",
+    "SpeechEditorWidget",
+    "VoiceSelectorWidget",
+]

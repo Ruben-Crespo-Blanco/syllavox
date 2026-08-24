@@ -4,12 +4,12 @@ Syllavox reads text aloud on your Windows computer using local speech
 synthesis. Text is processed on the computer rather than sent to a cloud TTS
 service.
 
-This is the public MVP release, version **0.2.0**. It is a Windows portable
+This is the public MVP release, version **0.3.0**. It is a Windows portable
 application: download it, extract it, and run it. No installer or Python
 installation is required for ordinary use.
 
 For the concise public-release summary, see the
-[v0.2.0 release notes](docs/release-notes-0.2.0.md).
+[v0.3.0 release notes](docs/release-notes-0.3.0.md).
 
 ## Before you start
 
@@ -74,6 +74,10 @@ The main window lets you:
 - adjust playback volume and speed;
 - manage installed voices.
 
+The v0.3.0 interface uses a quieter visual hierarchy with rounded cards,
+generous spacing, and a focused light palette. The application icon and window
+identity use the same original Syllavox speech-and-waveform mark.
+
 New speech requests interrupt the current playback. Syllavox does not queue
 multiple requests.
 
@@ -92,8 +96,12 @@ Ctrl+Alt+R
 
 By default, it reads the current clipboard text using the voice selected in the
 desktop window. The hotkey action can be changed to open the Syllavox window
-instead. The selected voice and playback preferences are shared by the window,
-hotkey, and local API.
+instead. To change the read shortcut, open **Settings**, click the **Read
+hotkey** field, press a modifier plus one supported key, and select **Save
+settings**. The default is `Ctrl+Alt+R`; if Windows rejects a replacement
+because another application is using it, Syllavox keeps the previous shortcut.
+The selected voice and playback preferences are shared by the window, hotkey,
+and local API.
 
 ### Browser extension
 
@@ -171,7 +179,7 @@ model limitations. When reporting the problem, include the exact voice ID and
 language, but do not attach the model files.
 
 Some Hebrew Piper voices currently fail while loading with
-`hebrew is not a valid phoneme type`. v0.2.0 classifies unsupported language
+`hebrew is not a valid phoneme type`. v0.3.0 classifies unsupported language
 phonemizers explicitly and reports the affected voice/runtime combination;
 include the exact voice ID when reporting a remaining compatibility problem.
 
@@ -182,8 +190,8 @@ while it downloads and try again after the download completes.
 
 ### The hotkey does nothing
 
-Make sure Syllavox is running and that another application has not claimed
-`Ctrl+Alt+R`. The hotkey action can be changed in the Syllavox settings.
+Make sure Syllavox is running and that another application has not claimed the
+configured shortcut. Open **Settings** to see or change the **Read hotkey**.
 
 ### The browser extension reports that Syllavox is not running
 
@@ -193,7 +201,7 @@ itself.
 
 ## Release scope and limitations
 
-Version 0.2.0 extends the focused Windows MVP with:
+Version 0.3.0 extends the focused Windows MVP with:
 
 - one universal portable Windows distribution, including Chinese support;
 - no bundled voice models;
@@ -205,11 +213,19 @@ Version 0.2.0 extends the focused Windows MVP with:
   formatting artifacts;
 - runtime-aware Piper language-compatibility diagnostics;
 - complete local-data cleanup for Syllavox-managed data;
+- a configurable global read hotkey with conflict-safe re-registration;
+- a minimal, smooth visual refresh for the main window, settings, and icon;
 - no playback queue; new requests interrupt current playback.
 
-macOS and Linux versions, a more polished interface, broader language-specific
-compatibility work, and additional TTS backends remain future work. Kokoro TTS
-is planned as a future backend and voice source.
+The maximum text length setting defaults to 1,000 characters and can be
+increased to 10,000. The upper bound is a practical safeguard for the current
+single-request speech workflow, not a Piper engine limitation; reading
+sessions and chunked long-form playback remain deferred until after 1.0.0.
+
+macOS and Linux versions, broader language-specific compatibility work, and
+additional TTS backends remain future work. Kokoro TTS is planned as a future
+backend and voice source. Reading sessions and a dedicated accessibility-first
+reading interface remain deferred until after 1.0.0.
 The internal import package is `syllavox`, and application data is stored in
 the current Syllavox data directory.
 

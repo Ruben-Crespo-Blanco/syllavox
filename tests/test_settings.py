@@ -80,7 +80,7 @@ def test_missing_keys_are_repaired(monkeypatch, tmp_path: Path) -> None:
 
     repaired = result.settings
     assert repaired["window"]["width"] == 800
-    assert repaired["window"]["height"] == 420
+    assert repaired["window"]["height"] == 720
     assert repaired["window"]["remember_position"] is True
     assert repaired["ui"]["start_minimized_to_tray"] is True
     assert repaired["hotkey"]["enabled"] is True

@@ -9,8 +9,31 @@ import pytest
 from syllavox.tts.catalog import (
     PIPER_VOICES_CATALOG_URL,
     PiperVoiceCatalog,
+    format_language_label,
 )
 from syllavox.tts.errors import VoiceCatalogError
+
+
+@pytest.mark.parametrize(
+    ("language_code", "language_name"),
+    [
+        ("he_IL", "Hebrew"),
+        ("bg_BG", "Bulgarian"),
+        ("ja_JP", "Japanese"),
+        ("ko_KR", "Korean"),
+    ],
+)
+def test_language_labels_use_readable_names_for_supported_families(
+    language_code: str,
+    language_name: str,
+) -> None:
+    assert format_language_label(language_code) == (
+        f"{language_name} ({language_code})"
+    )
+
+
+def test_language_labels_accept_hyphenated_locale_codes() -> None:
+    assert format_language_label("he-IL") == "Hebrew (he-IL)"
 
 
 class FakeResponse(BytesIO):

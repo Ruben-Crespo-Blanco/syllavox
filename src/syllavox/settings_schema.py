@@ -5,7 +5,11 @@ from __future__ import annotations
 import copy
 from typing import Any
 
-from .constants import CURRENT_CONFIG_SCHEMA_VERSION, DEFAULT_MAX_TEXT_LENGTH
+from .constants import (
+    CURRENT_CONFIG_SCHEMA_VERSION,
+    DEFAULT_MAX_TEXT_LENGTH,
+    DEFAULT_READ_HOTKEY,
+)
 
 
 def get_default_settings() -> dict[str, Any]:
@@ -13,8 +17,8 @@ def get_default_settings() -> dict[str, Any]:
     return {
         "version": CURRENT_CONFIG_SCHEMA_VERSION,
         "window": {
-            "width": 640,
-            "height": 420,
+            "width": 720,
+            "height": 720,
             "remember_position": True,
         },
         "ui": {
@@ -22,7 +26,7 @@ def get_default_settings() -> dict[str, Any]:
         },
         "hotkey": {
             "enabled": True,
-            "key": "Ctrl+Alt+R",
+            "key": DEFAULT_READ_HOTKEY,
             "action": "speak_clipboard",
         },
         "tts": {

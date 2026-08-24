@@ -98,6 +98,8 @@ class VoiceManagementView(QWidget):
                     self._display_name(voice),
                     format_language_label(
                         voice.language_code or voice.language,
+                        language_name=voice.language_name,
+                        country_name=voice.country_name,
                     ),
                     size_text,
                     status,
@@ -151,6 +153,8 @@ class VoiceManagementView(QWidget):
         return (
             format_language_label(
                 voice.language_code or voice.language,
+                language_name=voice.language_name,
+                country_name=voice.country_name,
             ).lower(),
             voice.name.lower(),
             voice.voice_id,

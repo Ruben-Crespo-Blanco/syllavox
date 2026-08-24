@@ -1,5 +1,38 @@
 # Changelog
 
+## [0.3.0] - 2026-08-24
+
+Syllavox 0.3.0 is the UI/UX polish release for the Windows MVP.
+
+### Added
+
+- Configurable global read-hotkey capture in Settings, retaining
+  `Ctrl+Alt+R` as the default.
+- Conflict-safe runtime hotkey re-registration with restoration of the previous
+  shortcut when the replacement cannot be registered.
+- A minimal, smooth visual theme for the main window, settings, voice
+  management surfaces, and speech editor.
+- Refreshed Syllavox speech-and-waveform icon used by the tray and application
+  window.
+- Readable language names for installed voices, including Hebrew and other
+  supported locale families.
+
+### Changed
+
+- The default window geometry now gives the speech editor and settings room to
+  breathe while preserving user-saved geometry.
+- Hotkey status and save feedback now show the active configured shortcut.
+- An immediately visible **Apply changes** action is available beside the
+  Read hotkey field.
+- The text-length setting documents its practical 10,000-character ceiling;
+  this is a single-request safeguard rather than a Piper engine limit.
+
+### Release scope
+
+This release does not add reading sessions, a dedicated accessibility-first
+reading interface, new TTS backends, or new platform targets. Those remain
+future roadmap work.
+
 ## [0.2.0] - 2026-08-23
 
 Syllavox 0.2.0 is the compatibility and privacy release for the Windows MVP.

@@ -146,6 +146,37 @@ def test_successful_registration_updates_status(
     assert status.message == "Registered"
 
 
+def test_reconfigure_restores_previous_shortcut_after_failure(
+    fake_backend_class: type[FakeHotkeyBackend],
+    logger: logging.Logger,
+) -> None:
+    manager = HotkeyManager(
+        logger=logger,
+        speak_clipboard_callback=lambda: None,
+        open_window_callback=lambda: None,
+    )
+    manager.register("Ctrl+Alt+R")
+
+    backend = manager._backend
+    assert isinstance(backend, FakeHotkeyBackend)
+    original_register = backend.register
+
+    def fail_new_shortcut(hotkey: str) -> FakeBinding:
+        if hotkey == "Ctrl+Alt+S":
+            raise HotkeyRegistrationError("Shortcut is already in use")
+        return original_register(hotkey)
+
+    backend.register = fail_new_shortcut  # type: ignore[method-assign]
+
+    with pytest.raises(HotkeyRegistrationError, match="already in use"):
+        manager.reconfigure("Ctrl+Alt+S")
+
+    assert backend.current_hotkey() == "Ctrl+Alt+R"
+    assert manager.status().registered is True
+    assert manager.status().key == "Ctrl+Alt+R"
+    assert "Previous shortcut kept" in manager.status().message
+
+
 def test_registration_failure_is_stored_and_propagated(
     fake_backend_class: type[FakeHotkeyBackend],
     logger: logging.Logger,
