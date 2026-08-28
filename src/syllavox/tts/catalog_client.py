@@ -10,9 +10,11 @@ from urllib.request import urlopen
 
 from syllavox.tts.catalog_models import (
     LANGUAGE_NAMES,
+    SherpaCatalogEntry,
     VoiceCatalogEntry,
 )
 from syllavox.tts.errors import VoiceCatalogError
+from syllavox.tts.sherpa_catalog import get_sherpa_catalog_entries
 
 PIPER_VOICES_CATALOG_URL = (
     "https://huggingface.co/rhasspy/piper-voices/resolve/main/"
@@ -165,8 +167,42 @@ class PiperCatalogClient:
         return parts[1] if len(parts) > 1 else "unknown"
 
 
+class SherpaCatalogClient:
+    """Expose the curated, official non-Piper Sherpa model catalog."""
+
+    def fetch_catalog(
+        self,
+        is_bundle_installed: Callable[[str], bool] | None = None,
+    ) -> list[SherpaCatalogEntry]:
+        entries = list(get_sherpa_catalog_entries())
+        if is_bundle_installed is not None:
+            entries = [
+                replace(
+                    entry,
+                    installed=is_bundle_installed(entry.bundle_id),
+                )
+                for entry in entries
+            ]
+
+        if not entries:
+            raise VoiceCatalogError(
+                "The Sherpa-ONNX catalog contains no usable model bundles."
+            )
+
+        return sorted(
+            entries,
+            key=lambda entry: (
+                entry.language_label.lower(),
+                entry.name.lower(),
+                entry.quality.lower(),
+                entry.bundle_id,
+            ),
+        )
+
+
 __all__ = [
     "PIPER_VOICES_BASE_URL",
     "PIPER_VOICES_CATALOG_URL",
     "PiperCatalogClient",
+    "SherpaCatalogClient",
 ]

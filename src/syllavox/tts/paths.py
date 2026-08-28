@@ -10,6 +10,7 @@ from syllavox.constants import (
     MODELS_DIR_NAME,
     PIPER_DIR_NAME,
     RETAINED_AUDIO_DIR_NAME,
+    SHERPA_ONNX_DIR_NAME,
     TMP_DIR_NAME,
 )
 from syllavox.paths import get_app_base_dir
@@ -35,6 +36,11 @@ def get_piper_models_dir() -> Path:
     return get_models_dir() / PIPER_DIR_NAME
 
 
+def get_sherpa_onnx_models_dir() -> Path:
+    """Return the Sherpa-ONNX model-bundle directory."""
+    return get_models_dir() / SHERPA_ONNX_DIR_NAME
+
+
 def get_tmp_dir() -> Path:
     """
     Return the temporary audio output directory.
@@ -56,6 +62,7 @@ def ensure_tts_directories() -> None:
     """
     get_models_dir().mkdir(parents=True, exist_ok=True)
     get_piper_models_dir().mkdir(parents=True, exist_ok=True)
+    get_sherpa_onnx_models_dir().mkdir(parents=True, exist_ok=True)
     get_tmp_dir().mkdir(parents=True, exist_ok=True)
     get_retained_audio_dir().mkdir(parents=True, exist_ok=True)
 

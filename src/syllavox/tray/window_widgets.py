@@ -38,7 +38,9 @@ from syllavox.audio.player import (
 from syllavox.constants import (
     DEFAULT_MAX_TEXT_LENGTH,
     DEFAULT_READ_HOTKEY,
+    DEFAULT_TTS_BACKEND,
     MAX_CONFIGURABLE_TEXT_LENGTH,
+    SHERPA_ONNX_TTS_BACKEND,
 )
 from syllavox.hotkey.errors import HotkeyRegistrationError
 from syllavox.hotkey.parser import parse_hotkey
@@ -377,13 +379,21 @@ class SettingsPanel(QGroupBox):
 
     clear_local_data_requested = Signal()
     hotkey_apply_requested = Signal()
+    restart_requested = Signal()
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        active_backend: str = DEFAULT_TTS_BACKEND,
+    ) -> None:
         super().__init__("Settings", parent)
         self.setObjectName("card")
+        self._active_backend = self._normalize_backend(active_backend)
 
         self.start_minimized_checkbox = QCheckBox("Start minimized to tray")
         self.remember_window_checkbox = QCheckBox("Remember window size")
+        self.backend_combo = QComboBox()
         self.max_text_length_spinbox = QSpinBox()
         self.hotkey_action_combo = QComboBox()
         self.hotkey_edit = HotkeyEdit()
@@ -399,6 +409,22 @@ class SettingsPanel(QGroupBox):
         self.hotkey_error_label.setObjectName("fieldError")
         self.hotkey_error_label.setWordWrap(True)
         self.hotkey_error_label.hide()
+        self.backend_hint_label = QLabel(
+            "Piper is the default. Sherpa-ONNX is an optional backend; its "
+            "model bundles are installed separately and apply after restart."
+        )
+        self.backend_hint_label.setObjectName("sectionHint")
+        self.backend_hint_label.setWordWrap(True)
+        self.backend_restart_hint_label = QLabel()
+        self.backend_restart_hint_label.setObjectName("sectionHint")
+        self.backend_restart_hint_label.setWordWrap(True)
+        self.backend_restart_button = QPushButton("Restart to apply")
+        self.backend_restart_button.setObjectName("accentButton")
+        self.backend_restart_button.setToolTip(
+            "Save the selected speech engine and restart Syllavox."
+        )
+        self.backend_restart_hint_label.hide()
+        self.backend_restart_button.hide()
         self.volume_slider = QSlider(Qt.Orientation.Horizontal)
         self.volume_value_label = QLabel()
         self.rate_spinbox = QDoubleSpinBox()
@@ -420,6 +446,17 @@ class SettingsPanel(QGroupBox):
         self.hotkey_action_combo.addItem("Speak clipboard", "speak_clipboard")
         self.hotkey_action_combo.addItem("Open window", "open_window")
         self.hotkey_action_combo.setEnabled(False)
+        self.backend_combo.addItem("Piper (default)", DEFAULT_TTS_BACKEND)
+        self.backend_combo.addItem(
+            "Sherpa-ONNX",
+            SHERPA_ONNX_TTS_BACKEND,
+        )
+        self.backend_combo.currentIndexChanged.connect(
+            self._on_backend_selection_changed
+        )
+        self.backend_restart_button.clicked.connect(
+            self.restart_requested.emit
+        )
         self.reset_hotkey_button.clicked.connect(
             lambda: self.hotkey_edit.set_hotkey(DEFAULT_READ_HOTKEY)
         )
@@ -434,8 +471,28 @@ class SettingsPanel(QGroupBox):
         )
 
         form = QFormLayout()
-        form.addRow("", self.start_minimized_checkbox)
-        form.addRow("", self.remember_window_checkbox)
+        form.setLabelAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        form.setFormAlignment(Qt.AlignmentFlag.AlignTop)
+        form.setFieldGrowthPolicy(
+            QFormLayout.FieldGrowthPolicy.AllNonFixedFieldsGrow
+        )
+        form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+        form.setHorizontalSpacing(18)
+        form.setVerticalSpacing(10)
+        form.addRow(self.start_minimized_checkbox)
+        form.addRow(self.remember_window_checkbox)
+        form.addRow("Speech engine:", self.backend_combo)
+        form.addRow(self.backend_hint_label)
+
+        backend_action_layout = QHBoxLayout()
+        backend_action_layout.setContentsMargins(0, 0, 0, 0)
+        backend_action_layout.addWidget(self.backend_restart_hint_label)
+        backend_action_layout.addStretch()
+        backend_action_layout.addWidget(self.backend_restart_button)
+        form.addRow(backend_action_layout)
+
         form.addRow("Max text length:", self.max_text_length_spinbox)
 
         hotkey_layout = QHBoxLayout()
@@ -447,12 +504,22 @@ class SettingsPanel(QGroupBox):
         form.addRow("", self.hotkey_error_label)
 
         volume_layout = QHBoxLayout()
+        volume_layout.setContentsMargins(0, 0, 0, 0)
         volume_layout.addWidget(self.volume_slider)
         volume_layout.addWidget(self.volume_value_label)
         form.addRow("Volume:", volume_layout)
         form.addRow("Speed:", self.rate_spinbox)
         form.addRow("Privacy:", self.clear_local_data_button)
         self.setLayout(form)
+
+        self.backend_combo.setMinimumWidth(220)
+        self.max_text_length_spinbox.setMinimumWidth(120)
+        self.rate_spinbox.setMinimumWidth(120)
+        self.volume_value_label.setAlignment(
+            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+        )
+        self.volume_value_label.setMinimumWidth(42)
+        self._update_backend_controls()
 
     def load_settings(self, settings: dict[str, Any]) -> None:
         """Load persisted values into the controls."""
@@ -471,6 +538,17 @@ class SettingsPanel(QGroupBox):
         self.max_text_length_spinbox.setValue(
             int(tts_settings.get("max_text_length", DEFAULT_MAX_TEXT_LENGTH))
         )
+
+        backend_value = str(
+            tts_settings.get("backend", DEFAULT_TTS_BACKEND)
+        ).strip().lower().replace("-", "_")
+        backend_index = self.backend_combo.findData(backend_value)
+        self.backend_combo.blockSignals(True)
+        self.backend_combo.setCurrentIndex(
+            backend_index if backend_index >= 0 else 0
+        )
+        self.backend_combo.blockSignals(False)
+        self._update_backend_controls()
 
         hotkey_action = hotkey_settings.get("action", "speak_clipboard")
         index = self.hotkey_action_combo.findData(hotkey_action)
@@ -522,6 +600,7 @@ class SettingsPanel(QGroupBox):
         )
         tts_settings["max_text_length"] = self.max_text_length_spinbox.value()
         tts_settings["voice_id"] = voice_id
+        tts_settings["backend"] = self.backend_combo.currentData()
         hotkey_settings["action"] = self.hotkey_action_combo.currentData()
         hotkey_settings["key"] = self.hotkey_edit.hotkey()
         playback_settings["volume"] = self.volume_slider.value() / 100
@@ -530,6 +609,49 @@ class SettingsPanel(QGroupBox):
     def _show_hotkey_validation(self, message: str) -> None:
         self.hotkey_error_label.setText(message)
         self.hotkey_error_label.setVisible(bool(message))
+
+    def _on_backend_selection_changed(self, index: int) -> None:
+        del index
+        self._update_backend_controls()
+
+    def _update_backend_controls(self) -> None:
+        selected_backend = self._normalize_backend(self.backend_combo.currentData())
+        restart_required = selected_backend != self._active_backend
+
+        self.backend_restart_button.setText(
+            "Restart to use Sherpa-ONNX"
+            if selected_backend == SHERPA_ONNX_TTS_BACKEND
+            else "Restart to use Piper"
+        )
+        self.backend_restart_hint_label.setText(
+            f"Save settings and restart to switch to "
+            f"{self._backend_display_name(selected_backend)}."
+        )
+        self.backend_restart_hint_label.setVisible(restart_required)
+        self.backend_restart_button.setVisible(restart_required)
+
+        if selected_backend == SHERPA_ONNX_TTS_BACKEND:
+            self.backend_hint_label.setText(
+                "Sherpa-ONNX is optional and uses separately installed model "
+                "bundles. It becomes active after restarting Syllavox."
+            )
+        else:
+            self.backend_hint_label.setText(
+                "Piper is the default speech engine. Its installed voices "
+                "remain available when Sherpa-ONNX is not selected."
+            )
+
+    @staticmethod
+    def _normalize_backend(value: object) -> str:
+        return str(value or DEFAULT_TTS_BACKEND).strip().lower().replace(
+            "-", "_"
+        )
+
+    @staticmethod
+    def _backend_display_name(value: str) -> str:
+        if value == SHERPA_ONNX_TTS_BACKEND:
+            return "Sherpa-ONNX"
+        return "Piper"
 
 
 __all__ = [

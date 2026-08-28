@@ -44,6 +44,26 @@ main components they bring into the application.
 | `uvicorn` | 0.52.1 | BSD-3-Clause | [Uvicorn](https://github.com/Kludex/uvicorn) |
 | `pydantic` | 2.13.4 | MIT | [Pydantic](https://github.com/pydantic/pydantic) |
 
+## Optional Sherpa-ONNX runtime
+
+The `sherpa` optional dependency adds the following components only when a
+Sherpa-enabled environment or portable build is explicitly requested:
+
+| Component | Version pinned | License | Upstream source |
+|---|---:|---|---|
+| `sherpa-onnx` | 1.13.6 | Apache-2.0 | [k2-fsa/sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) |
+| `sherpa-onnx-bin` | 1.13.6 | Apache-2.0 | [sherpa-onnx-bin on PyPI](https://pypi.org/project/sherpa-onnx-bin/) |
+
+The Sherpa-ONNX runtime is optional and is not part of the base Piper-only
+portable build. A Sherpa-enabled portable build collects its native
+runtime files and applicable license texts; `DEPENDENCY_VERSIONS.txt` remains
+the authoritative inventory for the actual artifact.
+
+Sherpa model bundles, phonemization data, lexicons, and voice files are
+separate works. Their licenses and redistribution terms come from each model's
+upstream release or model card and are not covered by the Sherpa-ONNX runtime
+license or Syllavox's MIT license.
+
 PySide6 also installs the `PySide6_Essentials`, `PySide6_Addons`, and
 `shiboken6` packages. They carry the same Qt for Python licensing choices and
 are part of the portable-build review.

@@ -5,3 +5,6 @@ __pycache__/
 .coverage
 build/
 dist/
+.test*
+.pytest*
+*.wav

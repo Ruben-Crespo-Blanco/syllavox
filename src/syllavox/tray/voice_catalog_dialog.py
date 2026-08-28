@@ -1,15 +1,16 @@
-"""Dialog controller for browsing and installing Piper voices."""
+"""Dialog controller for browsing and installing local voice bundles."""
 
 from __future__ import annotations
 
 import logging
 from collections.abc import Callable
+from typing import Any
 
 from PySide6.QtWidgets import QDialog, QVBoxLayout
 
 from syllavox.tray.background_worker import BackgroundWorkerMixin
 from syllavox.tray.voice_catalog_view import VoiceCatalogView
-from syllavox.tts.catalog import PiperVoiceCatalog, VoiceCatalogEntry
+from syllavox.tts.catalog_models import SherpaCatalogEntry, VoiceCatalogEntry
 
 
 VoiceInstalledCallback = Callable[[str], None]
@@ -20,7 +21,7 @@ class VoiceCatalogDialog(BackgroundWorkerMixin, QDialog):
 
     def __init__(
         self,
-        catalog: PiperVoiceCatalog,
+        catalog: object,
         installed_voice_ids: set[str],
         on_voice_installed: VoiceInstalledCallback,
         logger: logging.Logger,
@@ -32,13 +33,18 @@ class VoiceCatalogDialog(BackgroundWorkerMixin, QDialog):
         self._installed_voice_ids = set(installed_voice_ids)
         self._on_voice_installed = on_voice_installed
         self._logger = logger
-        self._entries: dict[str, VoiceCatalogEntry] = {}
+        self._entries: dict[str, Any] = {}
         self._initialize_worker(self._on_worker_result)
 
-        self.setWindowTitle("Piper voices")
+        backend_label = str(getattr(catalog, "display_name", "Voice"))
+        catalog_url = getattr(catalog, "catalog_url", None)
+        self.setWindowTitle(f"{backend_label} voices")
         self.setMinimumSize(700, 500)
 
-        self._view = VoiceCatalogView()
+        self._view = VoiceCatalogView(
+            backend_label=backend_label,
+            catalog_url=catalog_url,
+        )
         self._view.refresh_requested.connect(self._load_catalog)
         self._view.install_requested.connect(self._install_selected)
         self._view.close_requested.connect(self.close)
@@ -54,14 +60,20 @@ class VoiceCatalogDialog(BackgroundWorkerMixin, QDialog):
         layout.addWidget(self._view)
         self.setLayout(layout)
 
-        self._view.set_busy("Loading Piper voice catalog\u2026", busy=False)
+        self._view.set_busy(
+            f"Loading {backend_label} voice catalog\u2026",
+            busy=False,
+        )
         self._load_catalog()
 
     def _load_catalog(self) -> None:
         if self._is_worker_running():
             return
 
-        self._view.set_busy("Loading Piper voice catalog\u2026", busy=True)
+        self._view.set_busy(
+            f"Loading {self.windowTitle()} catalog\u2026",
+            busy=True,
+        )
         self._start_worker(self._catalog.fetch_catalog, "catalog")
 
     def _install_selected(self) -> None:
@@ -81,18 +93,16 @@ class VoiceCatalogDialog(BackgroundWorkerMixin, QDialog):
 
         if operation == "error":
             self._view.set_busy(str(payload), busy=False)
-            self._logger.warning(
-                "Piper voice catalog operation failed: %s",
-                payload,
-            )
+            self._logger.warning("Voice catalog operation failed: %s", payload)
             return
 
         if operation == "catalog":
             if not isinstance(payload, list) or not all(
-                isinstance(entry, VoiceCatalogEntry) for entry in payload
+                isinstance(entry, (VoiceCatalogEntry, SherpaCatalogEntry))
+                for entry in payload
             ):
                 self._view.set_busy(
-                    "The Piper voice catalog returned invalid data.",
+                    "The voice catalog returned invalid data.",
                     busy=False,
                 )
                 return
@@ -101,12 +111,15 @@ class VoiceCatalogDialog(BackgroundWorkerMixin, QDialog):
             self._entries = {entry.voice_id: entry for entry in entries}
             self._view.populate(entries, self._installed_voice_ids)
             self._view.set_busy(
-                f"{len(entries)} Piper voices found.",
+                f"{len(entries)} {self.windowTitle().split(' voices', 1)[0]} models found.",
                 busy=False,
             )
             return
 
-        if operation == "installed" and isinstance(payload, VoiceCatalogEntry):
+        if operation == "installed" and isinstance(
+            payload,
+            (VoiceCatalogEntry, SherpaCatalogEntry),
+        ):
             self._installed_voice_ids.add(payload.voice_id)
             self._entries[payload.voice_id] = payload
             self._view.populate(

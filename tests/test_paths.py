@@ -9,6 +9,7 @@ from syllavox.paths import (
     get_logs_dir,
     get_settings_file_path,
 )
+from syllavox.tts.paths import get_sherpa_onnx_models_dir
 
 
 def test_get_local_appdata_dir_uses_localappdata(monkeypatch, tmp_path: Path) -> None:
@@ -45,6 +46,17 @@ def test_logs_dir(monkeypatch, tmp_path: Path) -> None:
     expected = tmp_path / APP_NAME / LOGS_DIR_NAME
 
     assert get_logs_dir() == expected
+
+
+def test_sherpa_models_dir_is_backend_specific(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+
+    assert get_sherpa_onnx_models_dir() == (
+        tmp_path / APP_NAME / "models" / "sherpa-onnx"
+    )
 
 
 def test_ensure_app_directories_creates_base_and_logs(

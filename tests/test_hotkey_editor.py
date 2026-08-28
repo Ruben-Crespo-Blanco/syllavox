@@ -62,3 +62,19 @@ def test_settings_panel_exposes_visible_hotkey_apply_action() -> None:
     panel.apply_hotkey_button.click()
 
     assert applied == [True]
+
+
+def test_settings_panel_shows_restart_action_for_backend_change() -> None:
+    panel = SettingsPanel()
+    restart_requests: list[bool] = []
+    panel.restart_requested.connect(lambda: restart_requests.append(True))
+
+    assert panel.backend_restart_button.isHidden() is True
+
+    panel.backend_combo.setCurrentIndex(1)
+
+    assert panel.backend_restart_button.isHidden() is False
+    assert panel.backend_restart_button.text() == "Restart to use Sherpa-ONNX"
+
+    panel.backend_restart_button.click()
+    assert restart_requests == [True]

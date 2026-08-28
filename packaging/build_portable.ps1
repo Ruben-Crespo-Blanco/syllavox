@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [switch]$SkipPyInstaller
+    [switch]$SkipPyInstaller,
+    [switch]$IncludeSherpa
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,6 +20,11 @@ $thirdPartyNotices = Join-Path $projectRoot "THIRD_PARTY_NOTICES.md"
 $changelog = Join-Path $projectRoot "CHANGELOG.md"
 $trayIcon = Join-Path $projectRoot "src\syllavox\assets\tray_icon.png"
 $sitePackagesRoot = Join-Path $projectRoot ".venv\Lib\site-packages"
+
+# The base portable build remains Piper-only to keep its download small. The
+# same spec can include the optional native Sherpa runtime when this switch is
+# explicitly requested, producing a Sherpa-enabled portable build.
+$env:SYLLAVOX_INCLUDE_SHERPA = if ($IncludeSherpa) { "1" } else { "0" }
 
 if (-not (Test-Path -LiteralPath $pythonPath)) {
     throw "Project virtual environment was not found at $pythonPath"
@@ -108,6 +114,17 @@ $licenseSources = @(
     @{ Pattern = "pyinstaller-*.dist-info\licenses\COPYING.txt"; Name = "pyinstaller-COPYING.txt" }
 )
 
+if ($IncludeSherpa) {
+    $licenseSources += @(
+        @{ Pattern = "sherpa_onnx-*.dist-info\licenses\LICENSE"; Name = "sherpa-onnx-LICENSE" },
+        @{ Pattern = "sherpa_onnx-*.dist-info\licenses\Apache-2.0.txt"; Name = "sherpa-onnx-Apache-2.0.txt" },
+        @{ Pattern = "sherpa_onnx-*.dist-info\LICENSE*"; Name = "sherpa-onnx-LICENSE-root" },
+        @{ Pattern = "sherpa_onnx_bin-*.dist-info\licenses\LICENSE"; Name = "sherpa-onnx-bin-LICENSE" },
+        @{ Pattern = "sherpa_onnx_bin-*.dist-info\licenses\Apache-2.0.txt"; Name = "sherpa-onnx-bin-Apache-2.0.txt" },
+        @{ Pattern = "sherpa_onnx_bin-*.dist-info\LICENSE*"; Name = "sherpa-onnx-bin-LICENSE-root" }
+    )
+}
+
 foreach ($licenseSource in $licenseSources) {
     $matches = Get-ChildItem `
         -Path (Join-Path $projectRoot ".venv\Lib\site-packages\$($licenseSource.Pattern)") `
@@ -167,6 +184,10 @@ User settings, logs, temporary audio, and downloaded Piper voices are stored
 under %LOCALAPPDATA%\Syllavox and are not part of this folder.
 The Chinese g2pW phonemization resource, when needed, is stored there as well
 and is downloaded on first use of a Chinese voice.
+
+This is a Piper-only build unless it was created with -IncludeSherpa. In a
+Sherpa-enabled build, model bundles are still stored under
+%LOCALAPPDATA%\Syllavox\models\sherpa-onnx and are not included here.
 
 This build does not include voice models. Install voices explicitly from the
 application's voice catalog, or restore them from the project's external

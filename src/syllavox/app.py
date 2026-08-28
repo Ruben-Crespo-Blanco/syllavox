@@ -23,8 +23,10 @@ from .audio.qt_bridge import QtAudioBridge
 from .constants import (
     DEFAULT_MAX_TEXT_LENGTH,
     DEFAULT_READ_HOTKEY,
+    DEFAULT_TTS_BACKEND,
     MAX_CONFIGURABLE_TEXT_LENGTH,
     PRODUCT_NAME,
+    SHERPA_ONNX_TTS_BACKEND,
 )
 from .hotkey.errors import (
     HotkeyActionError,
@@ -48,10 +50,11 @@ from .tray.tray_app import TrayApp
 from .tray.theme import apply_app_theme
 from .tray.window import MainWindow
 from .tts.manager import TTSBackendManager
-from .tts.catalog import PiperVoiceCatalog
+from .tts.catalog import PiperVoiceCatalog, SherpaVoiceCatalog
 from .tts.paths import cleanup_temporary_audio_files, ensure_tts_directories
-from .tts.paths import get_piper_models_dir
+from .tts.paths import get_piper_models_dir, get_sherpa_onnx_models_dir
 from .tts.piper import PiperBackend
+from .tts.sherpa_onnx import SherpaOnnxBackend
 
 
 @dataclass(frozen=True)
@@ -124,19 +127,34 @@ def _create_speech_services(
     audio_player: AudioPlayerPort,
     logger,
 ) -> tuple[TTSBackendManager, SpeechController]:
-    """Create the Piper backend, backend manager, and shared speech service."""
-    piper_backend = PiperBackend()
+    """Create the configured backend, manager, and shared speech service."""
+    tts_settings = settings_manager.settings.get("tts", {})
+    configured_backend = str(
+        tts_settings.get("backend", DEFAULT_TTS_BACKEND)
+    ).strip().lower().replace("-", "_")
+
+    if configured_backend == SHERPA_ONNX_TTS_BACKEND:
+        backend = SherpaOnnxBackend()
+        logger.info(
+            "Sherpa-ONNX backend selected from settings; "
+            "Piper remains the default backend."
+        )
+    else:
+        if configured_backend != DEFAULT_TTS_BACKEND:
+            logger.warning(
+                "Unknown TTS backend %r; falling back to Piper.",
+                configured_backend,
+            )
+        backend = PiperBackend()
 
     configured_max_text_length = int(
-        settings_manager.settings
-        .get("tts", {})
-        .get("max_text_length", DEFAULT_MAX_TEXT_LENGTH)
+        tts_settings.get("max_text_length", DEFAULT_MAX_TEXT_LENGTH)
     )
     max_text_length = min(
         configured_max_text_length,
         MAX_CONFIGURABLE_TEXT_LENGTH,
     )
-    default_voice_id = settings_manager.settings.get("tts", {}).get("voice_id")
+    default_voice_id = tts_settings.get("voice_id")
     playback_settings = settings_manager.settings.get("playback", {})
 
     volume = normalize_playback_value(
@@ -156,7 +174,7 @@ def _create_speech_services(
     audio_player.set_playback_rate(rate)
 
     backend_manager = TTSBackendManager(
-        backend=piper_backend,
+        backend=backend,
         max_text_length=max_text_length,
         default_voice_id=(
             default_voice_id
@@ -295,14 +313,22 @@ def _create_ui_services(
     speech_services: _SpeechServices,
 ) -> _UiServices:
     """Create the main window, tray integration, and focus IPC endpoint."""
+    if speech_services.backend_manager.backend_name() == "sherpa-onnx":
+        voice_catalog = SherpaVoiceCatalog(
+            backend=speech_services.backend_manager.active_backend,
+            models_dir=get_sherpa_onnx_models_dir(),
+        )
+    else:
+        voice_catalog = PiperVoiceCatalog(
+            models_dir=get_piper_models_dir()
+        )
+
     main_window = MainWindow(
         state_manager=context.state_manager,
         settings_manager=context.settings_manager,
         backend_manager=speech_services.backend_manager,
         speech_controller=speech_services.speech_controller,
-        voice_catalog=PiperVoiceCatalog(
-            models_dir=get_piper_models_dir()
-        ),
+        voice_catalog=voice_catalog,
     )
 
     tray_app = TrayApp(

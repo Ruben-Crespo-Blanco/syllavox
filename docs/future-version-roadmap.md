@@ -2,7 +2,7 @@
 
 This roadmap maps planned development to proposed versions. The version
 assignments are planning targets, not commitments. The current public target
-is the Windows MVP, version 0.3.0.
+is the Windows MVP, version 0.4.0.
 
 ## Version plan
 
@@ -12,7 +12,7 @@ is the Windows MVP, version 0.3.0.
 | **0.1.1** | Maintenance | Fix issues found during manual and early public testing; improve packaging, documentation, and voice-specific bugs without adding major features. |
 | **0.2.0** | Compatibility and privacy | Investigate other language-specific Piper failures, improve text/read formatting, and add complete local-data cleanup for logs, settings, retained WAVs, models, and `g2pW` data. |
 | **0.3.0** | UI/UX | Remodel the UI with a minimal, smooth, Apple-inspired visual system; redesign the Syllavox icon and application windows; clarify voice/model management; improve feedback during loading, synthesis, and errors; and let users change the global read hotkey. |
-| **0.4.0** | Additional TTS backend | Add Kokoro TTS support, including voice discovery, installation, selection, loading/unloading, deletion, and backend-specific diagnostics. |
+| **0.4.0** | Additional TTS backend | Add Sherpa-ONNX as an optional backend while keeping Piper as the default; support curated non-Piper Kokoro, Matcha, KittenTTS, VITS, and Supertonic bundles with discovery, installation, selection, loading/unloading, deletion, language-aware metadata, and diagnostics. |
 | **0.5.0** | macOS adaptation | Add macOS platform services, global hotkeys, single-instance handling, tray behavior, audio validation, packaging, and manual testing. |
 | **0.6.0** | Linux adaptation | Add Linux platform services, hotkeys, tray integration, packaging, distribution testing, and documented supported environments. |
 | **1.0.0** | Stable multi-platform release | Consolidate supported platforms, resolve major compatibility issues, stabilize APIs and settings, add a complete user-facing installer, complete release documentation, and establish a reliable feedback and maintenance process. |
@@ -54,12 +54,14 @@ future phase after 1.0.0.
 Evaluation completed on 2026-08-23 against the current Python/Piper
 architecture and the upstream projects.
 
+The Sherpa-ONNX implementation is now the v0.4.0 optional-backend pathway. It
+is opt-in, CPU-first, and does not make Sherpa the default or replace Piper.
+
 ### Decision
 
 - **Implement Sherpa-ONNX directly as an optional Python backend.** This fits
-  the existing `TTSBackend` interface and should be implemented as part of the
-  existing 0.4.0 additional-backend phase, without replacing Piper or changing
-  the public API.
+  the existing `TTSBackend` interface and is now implemented in v0.4.0,
+  without replacing Piper or changing the public API.
 - **Do not implement rust-tts-wrapper as Syllavox's core TTS layer now.** Keep
   it as a future interoperability option if SAPI, native cross-platform
   bindings, or a shared timing-capable native layer becomes a product
@@ -96,7 +98,7 @@ The implementation should:
    A bundle manifest must describe the model, tokens, voices, phonemization
    data, lexicons/rule FSTs, language, and license terms.
 4. Represent a Sherpa voice as a stable backend-qualified ID, for example
-   `kokoro-multilang-v1_0#sid=18`, because one model bundle can contain many
+   `sherpa-onnx:kokoro-multilang-v1_0#sid=18`, because one model bundle can contain many
    speakers. Keep the public `VoiceInfo` and `/v1/voices` shapes stable.
 5. Reuse `SpeechController`, `AudioPlayer`, pause/resume, interruption, WAV
    cleanup, and the existing local-only API. Do not add a second playback
@@ -108,12 +110,33 @@ The implementation should:
    libraries and notices, pin a tested version, and verify the resulting
    Windows artifact on a clean machine.
 
-The acceptance gate should be measured rather than assumed: cold-start time,
-warm synthesis latency, real-time factor on representative text, memory use,
+The acceptance gate remains measured rather than assumed: cold-start time, warm
+synthesis latency, real-time factor on representative text, memory use,
 voice/model size, interruption behavior, output compatibility, and licensing
-must all be compared with the current Piper path. The first implementation
-should use CPU execution and one proven Kokoro model family; GPU providers and
-large model catalogs should remain out of scope until the baseline is stable.
+must all be compared with the current Piper path. v0.4 keeps the model catalog
+curated and CPU-first; GPU providers, voice cloning, and further catalog
+expansion remain future work until the baseline is stable. The current
+Amy-low VITS baseline uses Sherpa's native WAV writer and keeps the default
+CPU thread count at 2 after the initial 2/4/8-thread comparison.
+
+### Current v0.4.0 implementation
+
+- `src/syllavox/tts/sherpa_onnx.py` provides the lazy Python adapter for VITS,
+  Matcha, Kokoro, KittenTTS, and Supertonic bundles. Converted Piper bundles
+  are supported by the adapter but intentionally excluded from the v0.4
+  catalog.
+- `bundle.json` manifests keep model paths, speaker IDs, language metadata, and
+  license references explicit. The catalog installs official non-Piper
+  archives and generates these manifests locally.
+- The Settings panel exposes an explicit Sherpa-ONNX selection. Piper remains
+  the default, and changing engines requires a restart.
+- The base portable build remains Piper-only. `build_portable.ps1 -IncludeSherpa`
+  enables the optional native runtime collection for a Sherpa-enabled build.
+- The in-app catalog downloads, validates, installs, and deletes complete
+  Sherpa bundles atomically. Model files remain separate from the application
+  and still require per-model license review.
+- `scripts/benchmark_sherpa_onnx.py` records the latency, real-time factor, WAV,
+  and bundle-size measurements needed for the adoption gate.
 
 Sherpa-ONNX should not be adopted as a highlighting solution. Its current TTS
 path produces audio but does not provide exact word-level timing to callers;
@@ -151,7 +174,7 @@ cannot provide.
 
 - Alternative voice-catalog hosting or mirrors if Hugging Face becomes
   unavailable.
-- Additional TTS backends beyond Piper and Kokoro.
+- Additional TTS backends beyond Piper and Sherpa-ONNX.
 - Further distribution improvements beyond the 1.0.0 installer.
 - Broader automation and integration support.
 - Investigate whether Syllavox voices, models, or synthesis services could be

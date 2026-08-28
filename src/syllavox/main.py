@@ -7,6 +7,10 @@ from __future__ import annotations
 import sys
 import traceback
 
+from .qt_runtime import configure_qt_dll_search_path
+
+configure_qt_dll_search_path()
+
 from PySide6.QtWidgets import QApplication, QMessageBox
 
 from .app import bootstrap

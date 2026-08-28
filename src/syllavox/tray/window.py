@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QProcess, Qt
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -19,7 +20,12 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from syllavox.constants import DEFAULT_READ_HOTKEY, PRODUCT_NAME
+from syllavox.constants import (
+    DEFAULT_READ_HOTKEY,
+    DEFAULT_TTS_BACKEND,
+    PRODUCT_NAME,
+    SHERPA_ONNX_TTS_BACKEND,
+)
 from syllavox.hotkey.manager import HotkeyStatus
 from syllavox.local_data import clear_local_data
 from syllavox.logging_config import configure_logging, get_logger, shutdown_logging
@@ -30,10 +36,10 @@ from syllavox.speech.controller import SpeechController
 from syllavox.state import AppState, StateManager, StateSnapshot
 from syllavox.text_formatting import normalize_for_speech
 from syllavox.tts.base import VoiceInfo
-from syllavox.tts.catalog import PiperVoiceCatalog
+from syllavox.tts.catalog import PiperVoiceCatalog, SherpaVoiceCatalog
 from syllavox.tts.errors import BackendUnavailableError, TTSBackendError
 from syllavox.tts.manager import TTSBackendManager
-from syllavox.tts.paths import get_piper_models_dir
+from syllavox.tts.paths import get_piper_models_dir, get_sherpa_onnx_models_dir
 from syllavox.tray.voice_catalog_dialog import VoiceCatalogDialog
 from syllavox.tray.voice_management_dialog import VoiceManagementDialog
 from syllavox.tray.window_widgets import (
@@ -60,7 +66,7 @@ class MainWindow(QMainWindow):
         settings_manager: SettingsManager,
         backend_manager: TTSBackendManager,
         speech_controller: SpeechController,
-        voice_catalog: PiperVoiceCatalog | None = None,
+        voice_catalog: object | None = None,
     ) -> None:
         super().__init__()
 
@@ -68,9 +74,17 @@ class MainWindow(QMainWindow):
         self._settings_manager = settings_manager
         self._backend_manager = backend_manager
         self._speech_controller = speech_controller
-        self._voice_catalog = voice_catalog or PiperVoiceCatalog(
-            models_dir=get_piper_models_dir()
-        )
+        if voice_catalog is not None:
+            self._voice_catalog = voice_catalog
+        elif backend_manager.backend_name() == "sherpa-onnx":
+            self._voice_catalog = SherpaVoiceCatalog(
+                backend=backend_manager.active_backend,
+                models_dir=get_sherpa_onnx_models_dir(),
+            )
+        else:
+            self._voice_catalog = PiperVoiceCatalog(
+                models_dir=get_piper_models_dir()
+            )
         self._logger = get_logger(__name__)
         self._voices: list[VoiceInfo] = []
         self._hotkey_reconfigure_callback: Callable[[str], None] | None = None
@@ -109,7 +123,13 @@ class MainWindow(QMainWindow):
         self._clear_button = self._speech_editor.clear_button
         self._feedback_label = self._speech_editor.feedback_label
 
-        self._settings_panel = SettingsPanel()
+        self._settings_panel = SettingsPanel(
+            active_backend=(
+                SHERPA_ONNX_TTS_BACKEND
+                if backend_manager.backend_name() == "sherpa-onnx"
+                else DEFAULT_TTS_BACKEND
+            )
+        )
         self._start_minimized_checkbox = (
             self._settings_panel.start_minimized_checkbox
         )
@@ -205,6 +225,9 @@ class MainWindow(QMainWindow):
         self._settings_panel.hotkey_apply_requested.connect(
             self._save_settings
         )
+        self._settings_panel.restart_requested.connect(
+            self._restart_application
+        )
         self._settings_panel.clear_local_data_requested.connect(
             self._clear_local_data
         )
@@ -293,9 +316,19 @@ class MainWindow(QMainWindow):
             self._backend_manager.set_default_voice_id(voice_id)
 
     def _open_voice_catalog(self) -> None:
+        installed_catalog_ids = getattr(
+            self._voice_catalog,
+            "installed_catalog_ids",
+            None,
+        )
+        if callable(installed_catalog_ids):
+            installed_ids = set(installed_catalog_ids())
+        else:
+            installed_ids = {voice.voice_id for voice in self._voices}
+
         dialog = VoiceCatalogDialog(
             catalog=self._voice_catalog,
-            installed_voice_ids={voice.voice_id for voice in self._voices},
+            installed_voice_ids=installed_ids,
             on_voice_installed=self._on_voice_installed,
             logger=self._logger,
             parent=self,
@@ -323,7 +356,7 @@ class MainWindow(QMainWindow):
 
     def _on_voice_installed(self, voice_id: str) -> None:
         self._load_voices()
-        self._set_feedback(f"Installed Piper voice {voice_id}.")
+        self._set_feedback(f"Installed voice {voice_id}.")
 
     def _on_voice_resources_changed(self) -> None:
         self._load_voices()
@@ -550,7 +583,7 @@ class MainWindow(QMainWindow):
     def _set_feedback(self, message: str) -> None:
         self._speech_editor.set_feedback(message)
 
-    def _save_settings(self) -> None:
+    def _save_settings(self) -> bool:
         current_hotkey = str(
             self._settings_manager.settings.get("hotkey", {}).get(
                 "key",
@@ -572,15 +605,60 @@ class MainWindow(QMainWindow):
                     "Hotkey reconfiguration failed; settings were not saved: %s",
                     exc,
                 )
-                return
+                return False
 
         self._write_controls_to_settings()
         self._save_window_size_if_enabled()
         self._settings_manager.save()
+        backend = self._settings_manager.settings.get("tts", {}).get(
+            "backend",
+            "piper",
+        )
+        restart_hint = (
+            " Restart Syllavox to apply the speech-engine change."
+            if backend != self._backend_manager.backend_name().replace("-", "_")
+            else ""
+        )
         self._set_feedback(
-            f"Settings saved. Read hotkey: {self._hotkey_edit.hotkey()}"
+            f"Settings saved. Read hotkey: {self._hotkey_edit.hotkey()}."
+            f"{restart_hint}"
         )
         self._logger.info("Main window settings saved")
+        return True
+
+    def _restart_application(self) -> None:
+        """Save settings and relaunch Syllavox so the selected backend loads."""
+        if not self._save_settings():
+            return
+
+        if self._state_manager.state in {AppState.SPEAKING, AppState.PAUSED}:
+            try:
+                self._speech_controller.stop()
+            except Exception as exc:
+                self._set_feedback(f"Could not stop playback before restart: {exc}")
+                self._logger.exception("Could not stop playback before restart")
+                return
+
+        if getattr(sys, "frozen", False):
+            executable = sys.executable
+            arguments = list(sys.argv[1:])
+        else:
+            executable = sys.executable
+            arguments = ["-m", "syllavox.main", *sys.argv[1:]]
+
+        if not QProcess.startDetached(executable, arguments):
+            self._set_feedback(
+                "Settings saved, but Syllavox could not start the restart."
+            )
+            self._logger.error(
+                "Could not start replacement Syllavox process: %s %s",
+                executable,
+                arguments,
+            )
+            return
+
+        self._set_feedback("Restarting Syllavox to apply the speech engine…")
+        QApplication.instance().quit()
 
     def _clear_local_data(self) -> None:
         answer = QMessageBox.question(

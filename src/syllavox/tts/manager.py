@@ -52,6 +52,11 @@ class TTSBackendManager:
         """Return the shared voice used when a request omits a voice ID."""
         return self._default_voice_id
 
+    @property
+    def active_backend(self) -> TTSBackend:
+        """Return the active backend for capability-aware UI composition."""
+        return self._backend
+
     def set_default_voice_id(self, voice_id: str | None) -> None:
         """Set the shared default voice for UI, hotkey, and API requests."""
         self._default_voice_id = voice_id

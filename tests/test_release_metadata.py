@@ -21,7 +21,7 @@ def _project_version_from_pyproject() -> str:
 
 
 def test_release_version_is_consistent_across_project_metadata() -> None:
-    assert PROJECT_VERSION == "0.3.0"
+    assert PROJECT_VERSION == "0.4.0"
     assert _project_version_from_pyproject() == PROJECT_VERSION
 
     for manifest_name in ("manifest.json", "manifest.firefox.json"):

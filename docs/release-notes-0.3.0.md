@@ -23,10 +23,10 @@ Syllavox v0.3.0 is the UI/UX polish release for the portable Windows MVP.
 ## Unchanged scope
 
 Reading sessions and the accessibility-first reading interface remain deferred
-until after 1.0.0. This release also does not add Sherpa-ONNX or
-`rust-tts-wrapper`; the former remains planned for the additional-backend phase
-and the latter remains an interoperability option for a future native-engine
-requirement.
+until after 1.0.0. This release does not adopt Sherpa-ONNX as a default or
+formal 0.4.0 feature; the opt-in experimental adapter is documented separately
+for evaluation. `rust-tts-wrapper` remains an interoperability option for a
+future native-engine requirement.
 
 Windows remains the supported platform, the public distribution remains
 portable rather than installer-based, Firefox support is experimental, and new

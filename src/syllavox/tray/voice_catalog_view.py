@@ -1,4 +1,4 @@
-"""Presentation widget for browsing and selecting Piper catalog voices."""
+"""Presentation widget for browsing and selecting catalog voices."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from syllavox.tts.catalog import VoiceCatalogEntry
+from syllavox.tts.catalog_models import SherpaCatalogEntry, VoiceCatalogEntry
 
 
 class VoiceCatalogView(QWidget):
@@ -23,21 +23,33 @@ class VoiceCatalogView(QWidget):
     install_requested = Signal()
     close_requested = Signal()
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        backend_label: str = "Piper",
+        catalog_url: str | None = None,
+    ) -> None:
         super().__init__(parent)
 
         intro_label = QLabel(
-            "Choose a Piper voice to install locally. Downloads happen only "
+            f"Choose a {backend_label} voice to install locally. Downloads happen only "
             "when you press Install."
         )
         intro_label.setWordWrap(True)
 
-        source_label = QLabel(
-            'Source: <a href="https://huggingface.co/rhasspy/piper-voices">'
-            "official Piper voice catalog on Hugging Face</a> \u00b7 "
-            '<a href="https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/VOICES.md">'
-            "Piper voice documentation</a>"
-        )
+        if catalog_url:
+            source_label = QLabel(
+                f'Source: <a href="{catalog_url}">official {backend_label} '
+                "model catalog</a>"
+            )
+        else:
+            source_label = QLabel(
+                'Source: <a href="https://huggingface.co/rhasspy/piper-voices">'
+                "official Piper voice catalog on Hugging Face</a> \u00b7 "
+                '<a href="https://github.com/OHF-Voice/piper1-gpl/blob/main/docs/VOICES.md">'
+                "Piper voice documentation</a>"
+            )
         source_label.setOpenExternalLinks(True)
 
         self.tree = QTreeWidget()
@@ -45,7 +57,7 @@ class VoiceCatalogView(QWidget):
         self.tree.setRootIsDecorated(True)
         self.tree.currentItemChanged.connect(self._on_current_item_changed)
 
-        self.status_label = QLabel("Loading Piper voice catalog\u2026")
+        self.status_label = QLabel(f"Loading {backend_label} voice catalog\u2026")
         self.status_label.setWordWrap(True)
 
         self.refresh_button = QPushButton("Refresh catalog")
@@ -76,7 +88,7 @@ class VoiceCatalogView(QWidget):
 
     def populate(
         self,
-        entries: list[VoiceCatalogEntry],
+        entries: list[VoiceCatalogEntry | SherpaCatalogEntry],
         installed_voice_ids: set[str],
     ) -> None:
         """Render catalog entries grouped by language."""
@@ -124,14 +136,18 @@ class VoiceCatalogView(QWidget):
             self.tree.setCurrentItem(self.tree.topLevelItem(0))
         self._update_install_button()
 
-    def selected_entry(self) -> VoiceCatalogEntry | None:
+    def selected_entry(self) -> VoiceCatalogEntry | SherpaCatalogEntry | None:
         """Return the selected catalog entry, if a voice row is selected."""
         item = self.tree.currentItem()
         if item is None:
             return None
 
         entry = item.data(0, Qt.ItemDataRole.UserRole + 1)
-        return entry if isinstance(entry, VoiceCatalogEntry) else None
+        return (
+            entry
+            if isinstance(entry, (VoiceCatalogEntry, SherpaCatalogEntry))
+            else None
+        )
 
     def set_busy(self, message: str, busy: bool) -> None:
         """Update status text and action controls for a background operation."""

@@ -4,18 +4,19 @@ Syllavox reads text aloud on your Windows computer using local speech
 synthesis. Text is processed on the computer rather than sent to a cloud TTS
 service.
 
-This is the public MVP release, version **0.3.0**. It is a Windows portable
+This is the public MVP release, version **0.4.0**. It is a Windows portable
 application: download it, extract it, and run it. No installer or Python
 installation is required for ordinary use.
 
 For the concise public-release summary, see the
-[v0.3.0 release notes](docs/release-notes-0.3.0.md).
+[v0.4.0 release notes](docs/release-notes-0.4.0.md).
 
 ## Before you start
 
 - Windows is the supported platform for this release.
 - The public application does not include voice models. You choose and
-  download the voices you want from Piper's official catalog.
+  download the voices you want from Piper's official catalog or, in a
+  Sherpa-enabled build, from Sherpa-ONNX's curated model catalog.
 - An internet connection is needed to browse and download a voice. Once a
   voice is installed, speech synthesis runs locally.
 - Voice models have their own licenses and model-card terms. Review those
@@ -74,7 +75,7 @@ The main window lets you:
 - adjust playback volume and speed;
 - manage installed voices.
 
-The v0.3.0 interface uses a quieter visual hierarchy with rounded cards,
+The v0.4.0 interface uses a quieter visual hierarchy with rounded cards,
 generous spacing, and a focused light palette. The application icon and window
 identity use the same original Syllavox speech-and-waveform mark.
 
@@ -144,6 +145,7 @@ The application stores runtime data under:
 | `logs\app.log` | Local diagnostic and lifecycle logs |
 | `models\piper\` | Downloaded Piper voice model pairs |
 | `models\piper\g2pW\` | Chinese phonemization data when needed |
+| `models\sherpa-onnx\` | Optional Sherpa-ONNX model bundles |
 | `tmp\` | Temporary playback files, cleaned automatically |
 | `audio\` | Explicitly retained runtime audio files |
 
@@ -179,7 +181,7 @@ model limitations. When reporting the problem, include the exact voice ID and
 language, but do not attach the model files.
 
 Some Hebrew Piper voices currently fail while loading with
-`hebrew is not a valid phoneme type`. v0.3.0 classifies unsupported language
+`hebrew is not a valid phoneme type`. v0.4.0 classifies unsupported language
 phonemizers explicitly and reports the affected voice/runtime combination;
 include the exact voice ID when reporting a remaining compatibility problem.
 
@@ -201,7 +203,7 @@ itself.
 
 ## Release scope and limitations
 
-Version 0.3.0 extends the focused Windows MVP with:
+Version 0.4.0 extends the focused Windows MVP with:
 
 - one universal portable Windows distribution, including Chinese support;
 - no bundled voice models;
@@ -215,6 +217,10 @@ Version 0.3.0 extends the focused Windows MVP with:
 - complete local-data cleanup for Syllavox-managed data;
 - a configurable global read hotkey with conflict-safe re-registration;
 - a minimal, smooth visual refresh for the main window, settings, and icon;
+- an optional Sherpa-ONNX backend with curated non-Piper Kokoro, Matcha,
+  KittenTTS, VITS, and Supertonic bundles;
+- Sherpa model discovery, atomic installation, language-aware voice selection,
+  bundle loading/unloading, deletion, diagnostics, and native WAV output;
 - no playback queue; new requests interrupt current playback.
 
 The maximum text length setting defaults to 1,000 characters and can be
@@ -222,10 +228,12 @@ increased to 10,000. The upper bound is a practical safeguard for the current
 single-request speech workflow, not a Piper engine limitation; reading
 sessions and chunked long-form playback remain deferred until after 1.0.0.
 
-macOS and Linux versions, broader language-specific compatibility work, and
-additional TTS backends remain future work. Kokoro TTS is planned as a future
-backend and voice source. Reading sessions and a dedicated accessibility-first
-reading interface remain deferred until after 1.0.0.
+macOS and Linux versions and broader language-specific compatibility work
+remain future work. Piper remains the default backend. The base portable build
+stays Piper-only to minimize download size; a Sherpa-enabled build includes
+the optional runtime, while model bundles are always downloaded separately.
+Reading sessions and a dedicated accessibility-first reading interface remain
+deferred until after 1.0.0.
 The internal import package is `syllavox`, and application data is stored in
 the current Syllavox data directory.
 
@@ -260,9 +268,14 @@ pytest
 The local API listens on `http://127.0.0.1:8765` and provides `/v1/status`,
 `/v1/speak`, `/v1/stop`, `/v1/pause`, `/v1/resume`, and `/v1/voices`.
 
-The application uses Piper behind a backend-neutral TTS interface. See the
-project-level [future-version roadmap](docs/future-version-roadmap.md) for
-planned work and release sequencing.
+The application uses Piper behind a backend-neutral TTS interface. An
+optional Sherpa-ONNX backend is available behind the `sherpa` dependency and
+the **Sherpa-ONNX** Settings choice. See the
+[Sherpa-ONNX guide](docs/sherpa-onnx-experimental.md) for setup, catalogs,
+model bundles, and benchmarking. The [future language model candidates](docs/sherpa-onnx/future-language-model-candidates.md)
+document tracks models that may be integrated later. See the project-level
+[future-version roadmap](docs/future-version-roadmap.md) for planned work and
+release sequencing.
 
 ## License
 

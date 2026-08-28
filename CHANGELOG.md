@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.4.0] - 2026-08-28
+
+Syllavox 0.4.0 adds Sherpa-ONNX as an optional speech backend while keeping
+Piper as the default.
+
+### Added
+
+- Lazy Sherpa-ONNX integration for VITS, Matcha, Kokoro, KittenTTS, and
+  Supertonic model families.
+- In-app discovery and atomic installation of curated official non-Piper
+  Sherpa model bundles.
+- Language-aware Kokoro speaker metadata and language-qualified Supertonic
+  voice IDs.
+- Sherpa model loading/unloading, complete bundle deletion, diagnostics, model
+  size reporting, and native WAV output.
+- A future-language model register covering existing candidates for Hebrew,
+  Thai, Bengali, Gujarati, Tamil, Telugu, and other missing languages.
+
+### Changed
+
+- The optional `sherpa` dependency and `-IncludeSherpa` portable build switch
+  now provide a supported opt-in backend pathway. The base portable build
+  remains Piper-only to minimize its size.
+- Sherpa's converted `vits-piper-*` archives are omitted from its catalog;
+  Piper remains responsible for those voices.
+
+### Release scope
+
+Reading sessions and a dedicated accessibility-first reading interface remain
+deferred until after 1.0.0. `rust-tts-wrapper` remains a future native
+interoperability option rather than Syllavox's core TTS layer.
+
 ## [0.3.0] - 2026-08-24
 
 Syllavox 0.3.0 is the UI/UX polish release for the Windows MVP.

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "syllavox"
-version = "0.3.0"
+version = "0.4.0"
 description = "Local offline text-to-speech reader"
 readme = "README.md"
 license = {file = "LICENSE"}
@@ -24,7 +24,7 @@ classifiers = [
 ]
 
 dependencies = [
-    "PySide6",
+    "PySide6>=6.10.1,<6.11",
     "fastapi",
     "uvicorn",
     "pydantic",
@@ -42,6 +42,10 @@ dev = [
 ]
 packaging = [
     "pyinstaller>=6.0",
+]
+sherpa = [
+    "sherpa-onnx==1.13.6",
+    "sherpa-onnx-bin==1.13.6",
 ]
 
 [tool.setuptools.packages.find]

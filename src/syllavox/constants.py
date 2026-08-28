@@ -11,7 +11,7 @@ This module is the single source of truth for:
 #
 # Syllavox is both the public product name and the runtime/storage identifier.
 PRODUCT_NAME = "Syllavox"
-PROJECT_VERSION = "0.3.0"
+PROJECT_VERSION = "0.4.0"
 APP_NAME = PRODUCT_NAME
 PACKAGE_NAME = "syllavox"
 
@@ -26,6 +26,8 @@ DEFAULT_MAX_TEXT_LENGTH = 1000
 # it prevents very large single requests while reading sessions are deferred.
 MAX_CONFIGURABLE_TEXT_LENGTH = 10_000
 DEFAULT_READ_HOTKEY = "Ctrl+Alt+R"
+DEFAULT_TTS_BACKEND = "piper"
+SHERPA_ONNX_TTS_BACKEND = "sherpa_onnx"
 CURRENT_CONFIG_SCHEMA_VERSION = 1
 
 # API configuration
@@ -37,5 +39,6 @@ API_BASE_URL = f"http://{API_HOST}:{API_PORT}/{API_VERSION}"
 # Runtime asset directories
 MODELS_DIR_NAME = "models"
 PIPER_DIR_NAME = "piper"
+SHERPA_ONNX_DIR_NAME = "sherpa-onnx"
 TMP_DIR_NAME = "tmp"
 RETAINED_AUDIO_DIR_NAME = "audio"

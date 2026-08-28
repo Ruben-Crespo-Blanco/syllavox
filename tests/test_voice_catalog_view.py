@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QApplication
 
 from syllavox.tray.voice_catalog_view import VoiceCatalogView
 from syllavox.tts.catalog import VoiceCatalogEntry
+from syllavox.tts.catalog_models import SherpaCatalogEntry
 
 
 _QT_APP = QApplication.instance() or QApplication([])
@@ -61,5 +62,26 @@ def test_view_disables_install_for_installed_voice_and_while_busy() -> None:
     view.set_busy("Installing...", busy=True)
     assert view.refresh_button.isEnabled() is False
     assert view.install_button.isEnabled() is False
+
+    view.close()
+
+
+def test_view_accepts_sherpa_bundle_entries() -> None:
+    entry = SherpaCatalogEntry(
+        bundle_id="kokoro-test",
+        name="Kokoro test",
+        family="kokoro",
+        language_codes=("en", "zh"),
+        quality="int8",
+        num_speakers=103,
+        archive_url="https://example.test/kokoro.tar.bz2",
+    )
+    view = VoiceCatalogView(backend_label="Sherpa-ONNX")
+
+    view.populate([entry], set())
+    view.tree.setCurrentItem(view.tree.topLevelItem(0).child(0))
+
+    assert view.selected_entry() == entry
+    assert view.install_button.isEnabled() is True
 
     view.close()

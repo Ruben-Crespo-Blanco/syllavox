@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "bundle_id": "kokoro-int8-multi-lang-v1_1",
+  "display_name": "Kokoro multilingual v1.1 INT8",
+  "family": "kokoro",
+  "model": "model.int8.onnx",
+  "voices": "voices.bin",
+  "tokens": "tokens.txt",
+  "data_dir": "espeak-ng-data",
+  "lexicon": ["lexicon-us-en.txt", "lexicon-zh.txt"],
+  "rule_fsts": ["phone-zh.fst", "date-zh.fst", "number-zh.fst"],
+  "language_codes": ["en", "zh"],
+  "quality": "int8",
+  "sample_rate": 24000,
+  "speaker_count": 103,
+  "license": "Review the upstream Kokoro model and voice terms before use or redistribution.",
+  "license_url": "https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/kokoro.html"
+}

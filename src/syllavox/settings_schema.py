@@ -9,6 +9,7 @@ from .constants import (
     CURRENT_CONFIG_SCHEMA_VERSION,
     DEFAULT_MAX_TEXT_LENGTH,
     DEFAULT_READ_HOTKEY,
+    DEFAULT_TTS_BACKEND,
 )
 
 
@@ -30,7 +31,7 @@ def get_default_settings() -> dict[str, Any]:
             "action": "speak_clipboard",
         },
         "tts": {
-            "backend": "piper",
+            "backend": DEFAULT_TTS_BACKEND,
             "voice_id": None,
             "max_text_length": DEFAULT_MAX_TEXT_LENGTH,
         },

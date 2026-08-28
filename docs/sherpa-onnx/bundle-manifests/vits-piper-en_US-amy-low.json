@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "bundle_id": "vits-piper-en_US-amy-low",
+  "display_name": "Piper Amy low via Sherpa-ONNX",
+  "family": "vits",
+  "model": "en_US-amy-low.onnx",
+  "tokens": "tokens.txt",
+  "data_dir": "espeak-ng-data",
+  "language_codes": ["en_US"],
+  "language_name": "English",
+  "country_name": "United States",
+  "quality": "low",
+  "sample_rate": 16000,
+  "speakers": [
+    {"id": 0, "name": "Amy"}
+  ],
+  "license": "Review the upstream Piper model card before use or redistribution.",
+  "license_url": "https://huggingface.co/rhasspy/piper-voices"
+}
