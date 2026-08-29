@@ -6,7 +6,7 @@ import ctypes
 import sys
 import tempfile
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from PySide6.QtCore import QLockFile
 
@@ -94,13 +94,32 @@ class _QtLockFile:
         self._acquired = False
 
 
+class InstanceLock(Protocol):
+    """Platform-neutral contract for the single-instance lock."""
+
+    def acquire(self) -> bool:
+        """Acquire the process lock, returning whether this is the owner."""
+        ...
+
+    def release(self) -> None:
+        """Release the process lock."""
+        ...
+
+
+def create_instance_lock(name: str = INSTANCE_MUTEX_NAME) -> InstanceLock:
+    """Select the host lock implementation behind one platform seam."""
+    return _WindowsMutex(name) if sys.platform == "win32" else _QtLockFile(name)
+
+
 class SingleInstanceGuard:
     """Own a per-user process-wide application guard."""
 
-    def __init__(self, name: str = INSTANCE_MUTEX_NAME) -> None:
-        self._implementation = (
-            _WindowsMutex(name) if sys.platform == "win32" else _QtLockFile(name)
-        )
+    def __init__(
+        self,
+        name: str = INSTANCE_MUTEX_NAME,
+        implementation: InstanceLock | None = None,
+    ) -> None:
+        self._implementation = implementation or create_instance_lock(name)
 
     def acquire(self) -> bool:
         """Acquire the guard, returning ``False`` if another instance owns it."""
@@ -111,4 +130,9 @@ class SingleInstanceGuard:
         self._implementation.release()
 
 
-__all__ = ["INSTANCE_MUTEX_NAME", "SingleInstanceGuard"]
+__all__ = [
+    "INSTANCE_MUTEX_NAME",
+    "InstanceLock",
+    "SingleInstanceGuard",
+    "create_instance_lock",
+]

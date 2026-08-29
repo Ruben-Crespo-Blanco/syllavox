@@ -1,5 +1,33 @@
 # Changelog
 
+## [0.4.1] - 2026-08-29
+
+Syllavox 0.4.1 is a hardening release that prepares the Windows application
+for future macOS and Linux adaptations.
+
+### Added
+
+- Platform seams for global hotkeys, application data paths, and
+  single-instance locking, while preserving the existing Windows behavior.
+- Explicit release of cached Piper and Sherpa model resources during shutdown.
+- A dependency and frozen-portable-size audit script.
+- Regression coverage for platform selection, platform data directories, and
+  complete runtime cleanup.
+
+### Changed
+
+- The portable build excludes optional `hf_xet`, development tooling, and
+  unused Qt module families while retaining the required Qt and speech
+  runtime components.
+- macOS uses the Application Support data-root convention and Linux/Unix uses
+  XDG data paths when those platforms are used in development.
+- Hebrew Piper is no longer documented as an active compatibility blocker.
+
+### Release scope
+
+This release does not implement macOS, Linux, reading sessions, the
+accessibility-first reading interface, or Android. Those remain future work.
+
 ## [0.4.0] - 2026-08-28
 
 Syllavox 0.4.0 adds Sherpa-ONNX as an optional speech backend while keeping

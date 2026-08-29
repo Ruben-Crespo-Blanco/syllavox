@@ -100,6 +100,20 @@ class TTSBackendManager:
 
         return list(memory_backend.loaded_voice_ids())
 
+    def shutdown(self) -> None:
+        """Release all model resources owned by the active backend."""
+        backend_shutdown = getattr(self._backend, "shutdown", None)
+        if callable(backend_shutdown):
+            backend_shutdown()
+            return
+
+        memory_backend = self._voice_memory_backend()
+        if memory_backend is None:
+            return
+
+        for voice_id in list(memory_backend.loaded_voice_ids()):
+            memory_backend.unload_voice(voice_id)
+
     def backend_name(self) -> str:
         """
         Return the active backend name.

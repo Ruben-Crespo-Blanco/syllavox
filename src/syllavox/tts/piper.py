@@ -524,6 +524,10 @@ class PiperBackend(TTSBackend, VoiceMemoryBackend):
         """
         return len(self._loaded_voices)
 
+    def shutdown(self) -> None:
+        """Release all cached Piper voice objects at application exit."""
+        self._loaded_voices.clear()
+
 
     def voice_compatibility_issue(self, voice_id: str) -> str | None:
         """Return a preflight language-compatibility issue, if one is known."""

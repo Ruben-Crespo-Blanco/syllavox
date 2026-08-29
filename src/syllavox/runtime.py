@@ -67,6 +67,7 @@ class ApplicationRuntime:
 
         self._shutdown_complete = True
 
+        backend_shutdown = getattr(self.backend_manager, "shutdown", None)
         cleanup_actions: list[CleanupAction] = [
             (
                 "single-instance IPC",
@@ -75,6 +76,10 @@ class ApplicationRuntime:
             ("API server", self.api_server.stop),
             ("global hotkey", self.hotkey_manager.shutdown),
             ("audio playback", self.audio_player.stop),
+            (
+                "TTS backend",
+                backend_shutdown if callable(backend_shutdown) else lambda: None,
+            ),
             ("tray icon", self.tray_app.tray_icon.hide),
         ]
 

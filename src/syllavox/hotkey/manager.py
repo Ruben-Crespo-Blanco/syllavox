@@ -6,7 +6,8 @@ This module maps a registered hotkey event to one of the supported app actions:
 - speak_clipboard
 - open_window
 
-Platform-specific registration remains isolated in win32_hotkey.py.
+Platform-specific registration is selected by the factory and remains
+isolated in the platform backend modules.
 """
 
 from __future__ import annotations
@@ -16,8 +17,9 @@ from enum import StrEnum
 from logging import Logger
 from dataclasses import dataclass
 
+from syllavox.hotkey.backend import GlobalHotkeyBackend
 from syllavox.hotkey.errors import HotkeyActionError, HotkeyRegistrationError, HotkeyUnsupportedPlatformError
-from syllavox.hotkey.win32_hotkey import Win32GlobalHotkey
+from syllavox.hotkey.factory import create_global_hotkey_backend
 
 
 ActionCallback = Callable[[], None]
@@ -55,6 +57,7 @@ class HotkeyManager:
         logger: Logger,
         speak_clipboard_callback: ActionCallback,
         open_window_callback: ActionCallback,
+        backend: GlobalHotkeyBackend | None = None,
     ) -> None:
         self._logger = logger
         self._speak_clipboard_callback = speak_clipboard_callback
@@ -62,7 +65,7 @@ class HotkeyManager:
 
         self._action = HotkeyAction.SPEAK_CLIPBOARD
 
-        self._backend = Win32GlobalHotkey(
+        self._backend = backend or create_global_hotkey_backend(
             callback=self._handle_hotkey_pressed,
         )
         self._status = HotkeyStatus(

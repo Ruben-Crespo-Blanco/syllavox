@@ -11,7 +11,7 @@ This module is the single source of truth for:
 #
 # Syllavox is both the public product name and the runtime/storage identifier.
 PRODUCT_NAME = "Syllavox"
-PROJECT_VERSION = "0.4.0"
+PROJECT_VERSION = "0.4.1"
 APP_NAME = PRODUCT_NAME
 PACKAGE_NAME = "syllavox"
 

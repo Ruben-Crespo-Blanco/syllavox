@@ -18,6 +18,29 @@ from syllavox.lifecycle import (
 from syllavox.tray.tray_app import TrayApp
 
 
+class FakeInstanceLock:
+    def __init__(self) -> None:
+        self.acquire_calls = 0
+        self.release_calls = 0
+
+    def acquire(self) -> bool:
+        self.acquire_calls += 1
+        return True
+
+    def release(self) -> None:
+        self.release_calls += 1
+
+
+def test_single_instance_guard_accepts_platform_lock() -> None:
+    lock = FakeInstanceLock()
+    guard = SingleInstanceGuard(implementation=lock)
+
+    assert guard.acquire() is True
+    guard.release()
+    assert lock.acquire_calls == 1
+    assert lock.release_calls == 1
+
+
 def _process_events_until(
     application: QCoreApplication,
     predicate,

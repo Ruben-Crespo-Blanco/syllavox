@@ -4,12 +4,12 @@ Syllavox reads text aloud on your Windows computer using local speech
 synthesis. Text is processed on the computer rather than sent to a cloud TTS
 service.
 
-This is the public MVP release, version **0.4.0**. It is a Windows portable
+This is the public MVP release, version **0.4.1**. It is a Windows portable
 application: download it, extract it, and run it. No installer or Python
 installation is required for ordinary use.
 
 For the concise public-release summary, see the
-[v0.4.0 release notes](docs/release-notes-0.4.0.md).
+[v0.4.1 release notes](docs/release-notes-0.4.1.md).
 
 ## Before you start
 
@@ -180,10 +180,10 @@ Try another voice first. Some voices have language-specific requirements or
 model limitations. When reporting the problem, include the exact voice ID and
 language, but do not attach the model files.
 
-Some Hebrew Piper voices currently fail while loading with
-`hebrew is not a valid phoneme type`. v0.4.0 classifies unsupported language
-phonemizers explicitly and reports the affected voice/runtime combination;
-include the exact voice ID when reporting a remaining compatibility problem.
+Hebrew Piper voices passed the latest compatibility check. If a future
+model-specific failure appears, include the exact voice ID and language when
+reporting it so the diagnostic can be improved without treating Hebrew as a
+general runtime problem.
 
 ### A Chinese voice takes longer the first time
 

@@ -16,7 +16,7 @@ For the main application guide, see the [project README](../README.md).
 | Microsoft Edge | Supported |
 | Mozilla Firefox | Experimental; temporary installation |
 
-The 0.4.0 release does not provide a signed browser-store extension. Chrome
+The 0.4.1 release does not provide a signed browser-store extension. Chrome
 and Edge use an unpacked extension installation. Firefox temporary add-ons
 must be loaded again after Firefox restarts.
 

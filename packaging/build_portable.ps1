@@ -140,15 +140,16 @@ foreach ($licenseSource in $licenseSources) {
 }
 
 $dependencyInventory = Join-Path $portableRoot "DEPENDENCY_VERSIONS.txt"
+$bundledRuntimeRoot = Join-Path $portableRoot "_internal"
 $inventoryLines = [System.Collections.Generic.List[string]]::new()
 $inventoryLines.Add("Syllavox $projectVersion portable build dependency inventory")
 $inventoryLines.Add(("Generated UTC: {0}" -f [DateTime]::UtcNow.ToString("o")))
-$inventoryLines.Add("Source: the build virtual environment's site-packages metadata")
+$inventoryLines.Add("Source: bundled portable runtime metadata")
 $inventoryLines.Add("")
 $inventoryLines.Add("Package == version")
 $inventoryLines.Add("------------------")
 
-Get-ChildItem -LiteralPath $sitePackagesRoot -Directory -Filter "*.dist-info" |
+Get-ChildItem -LiteralPath $bundledRuntimeRoot -Directory -Filter "*.dist-info" |
     Sort-Object Name |
     ForEach-Object {
         $metadataPath = Join-Path $_.FullName "METADATA"
@@ -201,6 +202,15 @@ records the exact packages present in the build environment.
 
 if (-not (Test-Path -LiteralPath (Join-Path $portableRoot "Syllavox.exe") -PathType Leaf)) {
     throw "The portable executable was not created in $portableRoot"
+}
+
+$bundledSherpaRoot = Join-Path $bundledRuntimeRoot "sherpa_onnx"
+if ($IncludeSherpa -and -not (Test-Path -LiteralPath $bundledSherpaRoot -PathType Container)) {
+    throw "Sherpa packaging was requested, but the bundled Sherpa runtime was not found."
+}
+
+if (-not $IncludeSherpa -and (Test-Path -LiteralPath $bundledSherpaRoot)) {
+    throw "The Piper-only portable output unexpectedly contains Sherpa runtime files."
 }
 
 $allowedEmbeddedModelRoots = @(

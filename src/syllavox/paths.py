@@ -7,7 +7,6 @@ Responsible for:
 - ensuring required directories exist on first run
 """
 
-import os
 from pathlib import Path
 
 from .constants import (
@@ -15,24 +14,22 @@ from .constants import (
     SETTINGS_FILE_NAME,
     LOGS_DIR_NAME,
 )
+from .platform_paths import get_platform_data_root
 
 
 def get_local_appdata_dir() -> Path:
     """
-    Resolve %LOCALAPPDATA%.
+    Resolve the platform's local application-data root.
 
-    Falls back to home directory if not set (defensive, though unlikely on Windows).
+    The historical function name is retained for compatibility with existing
+    callers. Platform selection is isolated in ``platform_paths``.
     """
-    local_appdata = os.getenv("LOCALAPPDATA")
-    if local_appdata:
-        return Path(local_appdata)
-    return Path.home()
+    return get_platform_data_root()
 
 
 def get_app_base_dir() -> Path:
     """
-    Base application directory:
-    %LOCALAPPDATA%\\Syllavox\\
+    Base application directory: the platform's local Syllavox data directory.
     """
     return get_local_appdata_dir() / APP_NAME
 

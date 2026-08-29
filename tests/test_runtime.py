@@ -42,6 +42,14 @@ class FakeTray:
         self.tray_icon = FakeTrayIcon(calls)
 
 
+class FakeBackendManager:
+    def __init__(self, calls: list[str]) -> None:
+        self._calls = calls
+
+    def shutdown(self) -> None:
+        self._calls.append("backend")
+
+
 def make_runtime(
     calls: list[str],
     api_fails: bool = False,
@@ -55,7 +63,7 @@ def make_runtime(
         logger=logging.getLogger("tests.runtime"),
         settings_manager=object(),
         state_manager=object(),
-        backend_manager=object(),
+        backend_manager=FakeBackendManager(calls),  # type: ignore[arg-type]
         audio_player=audio_player,  # type: ignore[arg-type]
         speech_controller=object(),
         hotkey_manager=hotkey_manager,  # type: ignore[arg-type]
@@ -71,7 +79,7 @@ def test_runtime_shutdown_cleans_resources_in_order() -> None:
 
     runtime.shutdown()
 
-    assert calls == ["api", "hotkey", "audio", "tray"]
+    assert calls == ["api", "hotkey", "audio", "backend", "tray"]
     assert runtime.is_shutdown is True
 
 
@@ -82,7 +90,7 @@ def test_runtime_shutdown_is_idempotent() -> None:
     runtime.shutdown()
     runtime.shutdown()
 
-    assert calls == ["api", "hotkey", "audio", "tray"]
+    assert calls == ["api", "hotkey", "audio", "backend", "tray"]
 
 
 def test_runtime_shutdown_continues_after_cleanup_failure(
@@ -94,5 +102,5 @@ def test_runtime_shutdown_continues_after_cleanup_failure(
     with caplog.at_level(logging.WARNING, logger="tests.runtime"):
         runtime.shutdown()
 
-    assert calls == ["api", "hotkey", "audio", "tray"]
+    assert calls == ["api", "hotkey", "audio", "backend", "tray"]
     assert "Failed to clean up API server" in caplog.text

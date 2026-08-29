@@ -244,6 +244,16 @@ def test_manager_loads_and_unloads_voice() -> None:
     assert manager.loaded_voice_ids() == []
 
 
+def test_manager_shutdown_releases_all_loaded_voices() -> None:
+    backend = FakeBackend()
+    manager = TTSBackendManager(backend=backend)
+
+    manager.load_voice("fake-voice")
+    manager.shutdown()
+
+    assert backend.loaded_voice_ids() == []
+
+
 def test_manager_handles_backend_without_voice_memory_capability() -> None:
     manager = TTSBackendManager(backend=BackendWithoutVoiceMemory())
 

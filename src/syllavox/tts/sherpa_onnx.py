@@ -328,6 +328,11 @@ class SherpaOnnxBackend(TTSBackend, VoiceMemoryBackend):
     def loaded_voice_ids(self) -> list[str]:
         return sorted(self._loaded_voice_ids)
 
+    def shutdown(self) -> None:
+        """Release cached OfflineTts instances and speaker references."""
+        self._loaded_voice_ids.clear()
+        self._loaded_bundles.clear()
+
     def synthesize(self, request: SynthesisRequest) -> SynthesisResult:
         """Generate Sherpa PCM audio and write Syllavox's standard WAV file."""
         voice_id = request.voice_id

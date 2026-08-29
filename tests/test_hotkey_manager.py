@@ -72,8 +72,8 @@ def fake_backend_class(
 ) -> type[FakeHotkeyBackend]:
     monkeypatch.setattr(
         manager_module,
-        "Win32GlobalHotkey",
-        FakeHotkeyBackend,
+        "create_global_hotkey_backend",
+        lambda callback: FakeHotkeyBackend(callback),
     )
     return FakeHotkeyBackend
 
