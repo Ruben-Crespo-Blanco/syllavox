@@ -4,19 +4,19 @@ Syllavox reads text aloud on your Windows computer using local speech
 synthesis. Text is processed on the computer rather than sent to a cloud TTS
 service.
 
-This is the public MVP release, version **0.4.1**. It is a Windows portable
+This is the public MVP release, version **0.4.2**. It is a Windows portable
 application: download it, extract it, and run it. No installer or Python
 installation is required for ordinary use.
 
 For the concise public-release summary, see the
-[v0.4.1 release notes](docs/release-notes-0.4.1.md).
+[v0.4.2 release notes](docs/release-notes-0.4.2.md).
 
 ## Before you start
 
 - Windows is the supported platform for this release.
 - The public application does not include voice models. You choose and
   download the voices you want from Piper's official catalog or, in a
-  Sherpa-enabled build, from Sherpa-ONNX's curated model catalog.
+  Sherpa-enabled build, from Syllavox's curated Sherpa-ONNX model catalog.
 - An internet connection is needed to browse and download a voice. Once a
   voice is installed, speech synthesis runs locally.
 - Voice models have their own licenses and model-card terms. Review those
@@ -56,10 +56,63 @@ The first use of some Chinese voices may also download Piper's `g2pW`
 phonemization resource. This is a shared language resource and is reused by
 later Chinese speech requests.
 
-Voices are downloaded from the official
-[Piper voice catalog](https://huggingface.co/rhasspy/piper-voices). Syllavox
-does not include the project's complete developer voice backup in public
-releases.
+To use the four v0.4.2 Sherpa additions (Afrikaans, Bengali, Gujarati, or
+Tswana), use a Sherpa-enabled build, choose **Sherpa-ONNX** in **Settings**,
+save the selection, and use the displayed restart action. Then return to
+**Find more voices...** and install the desired bundle. The Sherpa runtime is
+optional, and model archives are downloaded only when you select them.
+
+Piper voices are downloaded from the official
+[Piper voice catalog](https://huggingface.co/rhasspy/piper-voices). A
+Sherpa-enabled build also exposes the curated optional bundles documented in
+the [v0.4.2 language coverage record](docs/language-coverage-0.4.2.md).
+Syllavox does not include voice models or the project's complete developer
+voice backup in public releases.
+
+## Language coverage
+
+Syllavox has two voice catalogs. Piper is the default and has the broadest
+selection. Sherpa-ONNX is optional and adds a smaller curated selection of
+non-Piper voices. The live Piper catalog can change as voices are added or
+removed, and the exact locales, speakers, and quality levels vary by language;
+use **Find more voices...** to see the current downloadable entries.
+
+### Available now
+
+The current Piper catalog covers these language families:
+
+Arabic, Armenian, Albanian, Basque, Bengali, Bulgarian, Catalan, Chinese,
+Czech, Danish, Dutch, English, Estonian, Farsi, Finnish, French, Georgian,
+German, Greek, Hebrew, Hindi, Hungarian, Icelandic, Indonesian, Italian,
+Japanese, Kazakh, Korean, Kurmanji Kurdish, Latvian, Luxembourgish,
+Malayalam, Marathi, Nepali, Norwegian, Polish, Portuguese, Romanian, Russian,
+Serbian, Slovak, Slovenian, Spanish, Swedish, Swahili, Telugu, Turkish,
+Ukrainian, Vietnamese, and Welsh.
+
+A Sherpa-enabled build additionally provides curated Mimic3 voices for
+Afrikaans, Bengali, Gujarati, and Tswana. Its multilingual Supertonic bundle
+also provides Croatian and Lithuanian voices, while many other Supertonic
+languages overlap with Piper. Sherpa voice downloads are optional and are not
+included in the portable application.
+
+### Desired future targets
+
+These are planned targets, not promises of current support. For languages that
+already have a Piper voice, the goal may be an additional higher-quality,
+regional, or Sherpa-compatible option:
+
+- Thai;
+- Tamil, Punjabi, Kannada, and additional Indic languages;
+- Malay, Filipino/Tagalog, and Burmese/Myanmar;
+- Amharic and Azerbaijani;
+- stronger or additional non-Piper options for Marathi and Telugu; and
+- other long-tail languages prioritized by demand, pronunciation quality,
+  model size, and licensing.
+
+The [future language-model candidate register](docs/sherpa-onnx/future-language-model-candidates.md)
+tracks the research status and trade-offs for these targets. The [official
+Piper catalog](https://huggingface.co/rhasspy/piper-voices) remains the source
+of truth for its live language and voice list.
 
 ## Everyday use
 
@@ -130,8 +183,8 @@ Syllavox is designed for local operation:
 - the browser extension communicates with the local application at
   `127.0.0.1`;
 - the application does not use a cloud TTS service;
-- voice downloads come from the official Piper catalog when you explicitly
-  install a voice.
+- voice downloads come from an upstream Piper catalog or a curated Sherpa
+  model release only when you explicitly install a voice.
 
 The application stores runtime data under:
 
@@ -180,11 +233,6 @@ Try another voice first. Some voices have language-specific requirements or
 model limitations. When reporting the problem, include the exact voice ID and
 language, but do not attach the model files.
 
-Hebrew Piper voices passed the latest compatibility check. If a future
-model-specific failure appears, include the exact voice ID and language when
-reporting it so the diagnostic can be improved without treating Hebrew as a
-general runtime problem.
-
 ### A Chinese voice takes longer the first time
 
 Some Chinese voices need Piper's `g2pW` resource. Keep the application open
@@ -203,7 +251,7 @@ itself.
 
 ## Release scope and limitations
 
-Version 0.4.0 extends the focused Windows MVP with:
+Version 0.4.2 extends the focused Windows MVP with:
 
 - one universal portable Windows distribution, including Chinese support;
 - no bundled voice models;
@@ -219,6 +267,8 @@ Version 0.4.0 extends the focused Windows MVP with:
 - a minimal, smooth visual refresh for the main window, settings, and icon;
 - an optional Sherpa-ONNX backend with curated non-Piper Kokoro, Matcha,
   KittenTTS, VITS, and Supertonic bundles;
+- optional Sherpa Mimic3 VITS voices for Afrikaans, Bengali, Gujarati, and
+  Tswana;
 - Sherpa model discovery, atomic installation, language-aware voice selection,
   bundle loading/unloading, deletion, diagnostics, and native WAV output;
 - no playback queue; new requests interrupt current playback.

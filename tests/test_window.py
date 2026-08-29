@@ -8,7 +8,7 @@ import pytest
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QScrollArea, QWidget
 
 import syllavox.tray.window as window_module
 from syllavox.constants import DEFAULT_MAX_TEXT_LENGTH
@@ -85,6 +85,38 @@ def make_window(
 
     del qt_app
     return window, settings_manager, state_manager, backend
+
+
+def test_window_layout_centers_content_and_scrolls_at_small_sizes(
+    tmp_path: Path,
+    qt_app: QApplication,
+) -> None:
+    window, _, _, _ = make_window(tmp_path, qt_app)
+    scroll_area = window.findChild(QScrollArea, "contentScroll")
+    content_column = window.findChild(QWidget, "contentColumn")
+
+    assert scroll_area is not None
+    assert content_column is not None
+    assert window.minimumWidth() == window_module.MIN_WINDOW_WIDTH
+    assert (
+        scroll_area.horizontalScrollBarPolicy().name
+        == "ScrollBarAlwaysOff"
+    )
+
+    window.resize(1600, 1200)
+    window.show()
+    qt_app.processEvents()
+    assert content_column.width() <= window_module.MAX_CONTENT_WIDTH
+    assert content_column.x() >= 0
+    assert scroll_area.verticalScrollBar().isVisible() is False
+
+    window.resize(window.minimumWidth(), window.minimumHeight())
+    qt_app.processEvents()
+    assert content_column.width() <= scroll_area.viewport().width()
+    assert scroll_area.verticalScrollBar().isVisible() is True
+    assert window._save_settings_button.height() >= 36
+
+    window.close()
 
 
 def test_window_populates_voice_selector_and_persists_fallback(

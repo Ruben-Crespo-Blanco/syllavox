@@ -1,4 +1,4 @@
-# Sherpa-ONNX in Syllavox v0.4.0
+# Sherpa-ONNX in Syllavox v0.4.x
 
 Sherpa-ONNX is an optional second speech backend. Piper remains the default
 backend and remains the broadest voice catalog. Sherpa is useful because one
@@ -56,6 +56,7 @@ The in-app catalog contains curated non-Piper archives from the official
   and INT8 variants;
 - Inflect English Nano and Micro v2 VITS bundles;
 - MeloTTS Chinese + English VITS;
+- Mimic3 VITS voices for Afrikaans, Bengali, Gujarati, and Tswana;
 - Supertonic 3 multilingual INT8.
 
 The catalog includes the separate non-Piper monolingual bundles listed by the
@@ -80,17 +81,19 @@ sherpa-onnx:sherpa-onnx-supertonic-3-tts-int8-2026-05-11#sid=0&lang=fr
 
 The language is passed through Sherpa's generation configuration, so the
 selected language is not inferred from the user's text. Language labels use
-names such as `Hebrew (he_IL)` and `French (fr)` rather than displaying an
-opaque language family alone.
+readable names such as `English (en)` and `French (fr)` rather than displaying
+an opaque language family alone.
 
 Changing the speech engine shows a dedicated restart action in Settings; the
 action saves the selection and relaunches the application so the new backend
 is actually loaded.
 
 The separate [future language-model candidate register](sherpa-onnx/future-language-model-candidates.md)
-tracks Bengali, Gujarati, Hebrew, Thai, Tamil, Telugu, and other languages
-that have existing model sources but need conversion, quality, licensing, or
-resource evaluation before they belong in the active catalog.
+records the four Mimic3 additions and tracks Thai, Tamil, Telugu, Marathi,
+Punjabi, Kannada, and other languages that need
+conversion, quality, licensing, or resource evaluation before they belong in
+the active catalog. See the [v0.4.2 language coverage record](language-coverage-0.4.2.md)
+for the tested additions and their archive digests.
 
 ## Runtime behavior and diagnostics
 
@@ -127,11 +130,10 @@ python scripts/smoke_test_sherpa_models.py --threads 2
 
 The original v0.4 validation run passed 44/44 representative inference checks
 across the original 11 curated bundles, including both Kokoro languages and
-one Supertonic speaker in each of its 31 languages. The seven newly cataloged
-bundles should be included in the next real-model smoke-test run before this
-catalog expansion is called release-ready. The smoke test validates bundle
-loading and basic speech generation, not every speaker, text condition, or
-long-form workload.
+one Supertonic speaker in each of its 31 languages. The v0.4.2 validation run
+also passed installation, loading, and basic inference for the four Mimic3
+bundles. The smoke test validates bundle loading and basic speech generation,
+not every speaker, text condition, or long-form workload.
 
 The initial Amy-low comparison showed Sherpa's native writer producing warm
 audio in roughly 0.143 seconds with two threads for about 3.024 seconds of

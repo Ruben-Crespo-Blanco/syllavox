@@ -12,6 +12,12 @@ QMainWindow, QWidget#appPage {
     color: #172238;
 }
 
+QScrollArea#contentScroll, QWidget#scrollContent, QWidget#contentColumn,
+QWidget#appFooterHost, QWidget#appFooter {
+    background: transparent;
+    border: none;
+}
+
 QLabel#eyebrowLabel {
     color: #6c7890;
     font-size: 10px;

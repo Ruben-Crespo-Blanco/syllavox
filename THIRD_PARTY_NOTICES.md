@@ -126,6 +126,23 @@ complete voice backup without a separate per-voice redistribution review.
 The Chinese `g2pW` language resource is a separate runtime dependency. It is
 covered by the `g2pw` package's upstream license and is not a Syllavox asset.
 
+## Optional Mimic3 voice bundles added in v0.4.2
+
+Syllavox v0.4.2 adds links to optional Sherpa-ONNX-compatible Mimic3 VITS
+bundles for Afrikaans, Bengali, Gujarati, and Tswana. The model archives are
+downloaded by the user and are not included in Syllavox source or portable
+artifacts.
+
+The converted model cards point to the
+[MycroftAI Mimic3 voice repository](https://github.com/MycroftAI/mimic3-voices),
+which is licensed CC BY-SA 4.0. The repository's voice and dataset entries can
+have additional component-specific terms; the catalog therefore exposes the
+source and license links and does not describe these models as MIT-licensed.
+Review the upstream model card, dataset, and voice terms before redistribution.
+
+The bundle layout and release archives follow the
+[Sherpa-ONNX model-generation and packaging sources](https://github.com/k2-fsa/sherpa-onnx/blob/master/scripts/apk/generate-tts-apk-script.py).
+
 ## Project-generated icon assets
 
 The browser-extension icons in `extension/icons/` and the matching tray asset

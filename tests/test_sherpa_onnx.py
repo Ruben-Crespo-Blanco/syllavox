@@ -13,7 +13,7 @@ from syllavox.tts.errors import (
     VoiceNotFoundError,
 )
 import syllavox.tts.sherpa_onnx as sherpa_module
-from syllavox.tts.sherpa_onnx import SherpaOnnxBackend
+from syllavox.tts.sherpa_onnx import SherpaManifestError, SherpaOnnxBackend
 
 
 def _write_bundle(
@@ -145,6 +145,22 @@ def test_manifest_exposes_clear_language_and_stable_speaker_id(
     assert voices[0].language_code == "he_IL"
     assert voices[0].language_name == "Hebrew"
     assert "Kokoro test bundle" in voices[0].name
+
+
+def test_manifest_rejects_malformed_archive_checksum(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setitem(sys.modules, "sherpa_onnx", _FakeRuntime)
+    bundle_dir = _write_bundle(tmp_path)
+    manifest_path = bundle_dir / "bundle.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["archive_sha256"] = "not-a-checksum"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    backend = SherpaOnnxBackend(models_dir=tmp_path)
+
+    with pytest.raises(SherpaManifestError, match="64-character hexadecimal"):
+        backend._read_manifest(manifest_path)
 
 
 def test_incomplete_bundle_has_actionable_diagnostic(

@@ -50,6 +50,7 @@ SUPPORTED_MODEL_FAMILIES = frozenset(
     {"vits", "matcha", "kokoro", "kitten", "supertonic"}
 )
 _SAFE_BUNDLE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*$")
+_SHA256 = re.compile(r"^[0-9a-fA-F]{64}$")
 _VOICE_ID = re.compile(
     rf"^{re.escape(SHERPA_VOICE_PREFIX)}(?P<bundle>[^#]+)#sid=(?P<sid>[0-9]+)"
     rf"(?:&lang=(?P<lang>[A-Za-z0-9_-]+))?$"
@@ -97,8 +98,10 @@ class SherpaModelBundle:
     quality: str | None
     speakers: tuple[SherpaSpeaker, ...]
     sample_rate: int | None
+    source_url: str | None
     license_name: str | None
     license_url: str | None
+    archive_sha256: str | None
 
 
 class SherpaManifestError(TTSBackendError):
@@ -583,6 +586,11 @@ class SherpaOnnxBackend(TTSBackend, VoiceMemoryBackend):
             field="rule_fars",
         )
         language_codes = _language_codes(payload.get("language_codes", []))
+        archive_sha256 = _optional_string(payload, "archive_sha256")
+        if archive_sha256 is not None and not _SHA256.fullmatch(archive_sha256):
+            raise SherpaManifestError(
+                "archive_sha256 must be a 64-character hexadecimal digest."
+            )
         speakers = _speakers_from_manifest(
             payload.get("speakers"),
             payload.get("speaker_count"),
@@ -616,8 +624,10 @@ class SherpaOnnxBackend(TTSBackend, VoiceMemoryBackend):
             quality=_optional_string(payload, "quality"),
             speakers=speakers,
             sample_rate=_sample_rate(payload.get("sample_rate")),
+            source_url=_optional_string(payload, "source_url"),
             license_name=_optional_string(payload, "license"),
             license_url=_optional_string(payload, "license_url"),
+            archive_sha256=archive_sha256,
         )
 
     def _lookup_voice(

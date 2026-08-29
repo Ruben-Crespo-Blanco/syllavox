@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "syllavox"
-version = "0.4.1"
+version = "0.4.2"
 description = "Local offline text-to-speech reader"
 readme = "README.md"
 license = {file = "LICENSE"}

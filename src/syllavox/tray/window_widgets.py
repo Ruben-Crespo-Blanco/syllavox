@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QLineEdit,
     QPlainTextEdit,
     QPushButton,
+    QSizePolicy,
     QSlider,
     QSpinBox,
     QVBoxLayout,
@@ -167,7 +168,7 @@ class VoiceSelectorWidget(QWidget):
 
         self.combo = QComboBox()
         self.combo.setObjectName("voiceSelector")
-        self.find_button = QPushButton("Find more voices…")
+        self.find_button = QPushButton("Find voices…")
         self.manage_button = QPushButton("Manage voices…")
         self._last_voice_index = -1
 
@@ -176,13 +177,30 @@ class VoiceSelectorWidget(QWidget):
         self.manage_button.clicked.connect(self.manage_voices_requested)
 
         selector_layout = QHBoxLayout()
+        selector_layout.setContentsMargins(0, 0, 0, 0)
+        selector_layout.setSpacing(10)
         selector_layout.addWidget(self.combo)
         selector_layout.addWidget(self.find_button)
         selector_layout.addWidget(self.manage_button)
 
         form = QFormLayout()
+        form.setContentsMargins(0, 0, 0, 0)
+        form.setHorizontalSpacing(12)
+        form.setVerticalSpacing(0)
         form.addRow("Voice:", selector_layout)
         self.setLayout(form)
+
+        self.combo.setMinimumHeight(38)
+        self.combo.setSizePolicy(
+            QSizePolicy.Policy.Ignored,
+            QSizePolicy.Policy.Fixed,
+        )
+        for button in (self.find_button, self.manage_button):
+            button.setMinimumHeight(38)
+            button.setSizePolicy(
+                QSizePolicy.Policy.Ignored,
+                QSizePolicy.Policy.Fixed,
+            )
 
     def set_no_voices(self) -> None:
         """Show the disabled empty state."""
@@ -327,8 +345,14 @@ class SpeechEditorWidget(QWidget):
         self.speak_button.setObjectName("accentButton")
         self.export_button.setObjectName("primaryButton")
         self.text_edit.setMinimumHeight(210)
+        self.text_edit.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Expanding,
+        )
 
         button_layout = QHBoxLayout()
+        button_layout.setContentsMargins(0, 0, 0, 0)
+        button_layout.setSpacing(8)
         for button in (
             self.speak_button,
             self.export_button,
@@ -336,9 +360,16 @@ class SpeechEditorWidget(QWidget):
             self.stop_button,
             self.clear_button,
         ):
+            button.setMinimumHeight(40)
+            button.setSizePolicy(
+                QSizePolicy.Policy.Expanding,
+                QSizePolicy.Policy.Fixed,
+            )
             button_layout.addWidget(button)
 
         layout = QVBoxLayout()
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
         layout.addWidget(self.text_edit)
         layout.addWidget(self.character_count_label)
         layout.addLayout(button_layout)
@@ -472,7 +503,7 @@ class SettingsPanel(QGroupBox):
 
         form = QFormLayout()
         form.setLabelAlignment(
-            Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
         form.setFormAlignment(Qt.AlignmentFlag.AlignTop)
         form.setFieldGrowthPolicy(
@@ -481,6 +512,7 @@ class SettingsPanel(QGroupBox):
         form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
         form.setHorizontalSpacing(18)
         form.setVerticalSpacing(10)
+        form.setContentsMargins(0, 0, 0, 0)
         form.addRow(self.start_minimized_checkbox)
         form.addRow(self.remember_window_checkbox)
         form.addRow("Speech engine:", self.backend_combo)
@@ -512,9 +544,27 @@ class SettingsPanel(QGroupBox):
         form.addRow("Privacy:", self.clear_local_data_button)
         self.setLayout(form)
 
+        for control in (
+            self.backend_combo,
+            self.max_text_length_spinbox,
+            self.hotkey_edit,
+            self.rate_spinbox,
+        ):
+            control.setMinimumHeight(36)
+        for button in (
+            self.reset_hotkey_button,
+            self.apply_hotkey_button,
+            self.backend_restart_button,
+            self.clear_local_data_button,
+        ):
+            button.setMinimumHeight(36)
         self.backend_combo.setMinimumWidth(220)
+        self.backend_combo.setMaximumWidth(320)
         self.max_text_length_spinbox.setMinimumWidth(120)
+        self.max_text_length_spinbox.setMaximumWidth(180)
         self.rate_spinbox.setMinimumWidth(120)
+        self.rate_spinbox.setMaximumWidth(180)
+        self.clear_local_data_button.setMaximumWidth(260)
         self.volume_value_label.setAlignment(
             Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
         )

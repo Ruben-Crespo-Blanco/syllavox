@@ -3,9 +3,11 @@
 Thank you for taking an interest in Syllavox. The project is a
 local text-to-speech application maintained as a small side project.
 
-Version 0.4.1 focuses on hardening the portable Windows application, Piper and
-Sherpa voices, a shared local speech pipeline, browser-selected text,
-configurable clipboard hotkeys, polished Qt windows, and a local API.
+Version 0.4.2 focuses on language coverage through validated optional Sherpa
+voices while preserving the hardening work in the portable Windows
+application, Piper and Sherpa voices, a shared local speech pipeline,
+browser-selected text, configurable clipboard hotkeys, polished Qt windows,
+and a local API.
 Contributions should preserve
 that local-first behavior unless a change is explicitly discussed first.
 

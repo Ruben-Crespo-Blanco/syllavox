@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 import shutil
 import tarfile
 import tempfile
@@ -235,7 +237,11 @@ class SherpaVoiceStorage:
                 extracted_root = temporary_root / "extracted"
                 extracted_root.mkdir()
 
-                self._download_file(entry.archive_url, archive_path)
+                self._download_file(
+                    entry.archive_url,
+                    archive_path,
+                    expected_sha256=entry.archive_sha256,
+                )
                 self._safe_extract(archive_path, extracted_root)
                 bundle_root = self._find_bundle_root(
                     extracted_root,
@@ -304,7 +310,13 @@ class SherpaVoiceStorage:
         self._validate_bundle_id(bundle_id)
         return self._models_dir / bundle_id
 
-    def _download_file(self, url: str, destination: Path) -> None:
+    def _download_file(
+        self,
+        url: str,
+        destination: Path,
+        *,
+        expected_sha256: str | None = None,
+    ) -> None:
         destination.parent.mkdir(parents=True, exist_ok=True)
         temporary_destination = destination.with_name(
             f".{destination.name}.partial"
@@ -315,6 +327,17 @@ class SherpaVoiceStorage:
                     shutil.copyfileobj(response, output_file)
             if temporary_destination.stat().st_size == 0:
                 raise VoiceCatalogError(f"Downloaded file is empty: {url}")
+            if expected_sha256 is not None:
+                if not re.fullmatch(r"[0-9a-fA-F]{64}", expected_sha256):
+                    raise VoiceCatalogError(
+                        f"The catalog checksum for {url} is invalid."
+                    )
+                actual_sha256 = _sha256_file(temporary_destination)
+                if actual_sha256.lower() != expected_sha256.lower():
+                    raise VoiceCatalogError(
+                        f"Checksum mismatch for {url}: expected "
+                        f"{expected_sha256}, got {actual_sha256}."
+                    )
             temporary_destination.replace(destination)
         except Exception as exc:
             temporary_destination.unlink(missing_ok=True)
@@ -428,11 +451,16 @@ class SherpaVoiceStorage:
             "display_name": entry.name,
             "family": entry.family,
             "language_codes": list(entry.language_codes),
+            "language_name": entry.language_name,
+            "country_name": entry.country_name,
             "quality": entry.quality,
             "sample_rate": entry.sample_rate,
+            "source_url": entry.source_url,
             "license": entry.license_name,
             "license_url": entry.license_url,
         }
+        if entry.archive_sha256:
+            payload["archive_sha256"] = entry.archive_sha256
 
         field_map = {
             "model": entry.model_path,
@@ -497,6 +525,14 @@ class SherpaVoiceStorage:
             or any(character in bundle_id for character in ('/', '\\', ':'))
         ):
             raise VoiceCatalogError("The selected Sherpa bundle ID is invalid.")
+
+
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as input_file:
+        for chunk in iter(lambda: input_file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 __all__ = ["PiperVoiceStorage", "SherpaVoiceStorage"]

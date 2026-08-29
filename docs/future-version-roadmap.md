@@ -2,8 +2,8 @@
 
 This roadmap maps planned development to proposed versions. The version
 assignments are planning targets, not commitments. The current public release
-is the Windows hardening release, version 0.4.1; the next planned milestone is
-v0.4.2.
+is the language coverage release, version 0.4.2; the next planned milestone is
+v0.5.0.
 
 ## Version plan
 
@@ -14,8 +14,8 @@ v0.4.2.
 | **0.2.0** | Compatibility and privacy | Investigate other language-specific Piper failures, improve text/read formatting, and add complete local-data cleanup for logs, settings, retained WAVs, models, and `g2pW` data. |
 | **0.3.0** | UI/UX | Remodel the UI with a minimal, smooth, Apple-inspired visual system; redesign the Syllavox icon and application windows; clarify voice/model management; improve feedback during loading, synthesis, and errors; and let users change the global read hotkey. |
 | **0.4.0** | Additional TTS backend | Add Sherpa-ONNX as an optional backend while keeping Piper as the default; support curated non-Piper Kokoro, Matcha, KittenTTS, VITS, and Supertonic bundles with discovery, installation, selection, loading/unloading, deletion, language-aware metadata, and diagnostics. |
-| **0.4.1** | Hardening and platform preparation | Audit runtime dependencies and portable-build size; remove unnecessary runtime weight without reducing supported features; strengthen Piper/Sherpa lifecycle, packaging, API, and settings regression coverage; verify Hebrew Piper compatibility; and isolate Windows-specific services behind platform boundaries for the macOS work. |
-| **0.4.2** | Language coverage | Add carefully validated voices for important languages absent from the active non-Piper catalog, starting with Sherpa-compatible Mimic3 VITS candidates and then evaluating lightweight, legally redistributable conversion candidates for Thai and underserved Indic and long-tail languages. Keep Piper as the fallback and do not add unverified or oversized models. |
+| **0.4.1** | Hardening and platform preparation | Audit runtime dependencies and portable-build size; remove unnecessary runtime weight without reducing supported features; strengthen Piper/Sherpa lifecycle, packaging, API, and settings regression coverage; verify voice compatibility; and isolate Windows-specific services behind platform boundaries for the macOS work. |
+| **0.4.2** | Language coverage | Add carefully validated voices for important languages absent from the active non-Piper catalog, starting with Sherpa-compatible Mimic3 VITS candidates and then evaluating lightweight, legally redistributable conversion candidates for Thai and underserved Indic and long-tail languages. Keep Piper as the fallback and do not add unverified or oversized models. **Shipped:** Afrikaans, Bengali, Gujarati, and Tswana Mimic3 VITS bundles, integrity checks, and validation tooling. |
 | **0.5.0** | macOS adaptation | Add macOS platform services, global hotkeys, single-instance handling, tray behavior, audio validation, packaging, and manual testing. |
 | **0.6.0** | Linux adaptation | Add Linux platform services, hotkeys, tray integration, packaging, distribution testing, and documented supported environments. |
 | **1.0.0** | Stable multi-platform release | Consolidate supported platforms, resolve major compatibility issues, stabilize APIs and settings, add a complete user-facing installer, complete release documentation, and establish a reliable feedback and maintenance process. |
@@ -44,14 +44,6 @@ future phase after 1.0.0.
 - Context-agnostic highlighting inside arbitrary browsers, PDFs, Word
   documents, or other host applications.
 
-### Hebrew Piper compatibility status
-
-The previously documented Hebrew Piper loading problem is no longer considered
-an active blocker. The latest manual test loaded and synthesized Hebrew Piper
-voices successfully. v0.4.1 should retain Hebrew in the regression matrix and
-remove stale troubleshooting language, while continuing to report any future
-model-specific failure through the normal diagnostics path.
-
 ## v0.4.1 implementation plan
 
 v0.4.1 is a focused hardening release. It should not introduce reading
@@ -67,7 +59,7 @@ smaller, more predictable, and easier to extend to macOS.
 - Record the current direct and transitive runtime dependencies, native DLLs,
   package data, and license files included in each portable variant.
 - Run the existing regression suite and real-model Sherpa smoke test, including
-  the manually verified Hebrew Piper path.
+  representative Piper voice paths.
 
 ### 2. Audit dependencies and portable size
 
@@ -113,9 +105,8 @@ smaller, more predictable, and easier to extend to macOS.
 - Add settings-schema migration and backward-compatibility checks.
 - Verify the `/v1/voices` and `/v1/speak` response contracts remain stable for
   both backends.
-- Remove the stale Hebrew warning from current documentation and document the
-  successful compatibility check without claiming every future model is
-  guaranteed.
+- Remove stale voice warnings from current documentation and document the
+  compatibility checks without claiming every future model is guaranteed.
 - Publish separate Piper-only and Sherpa-enabled artifact measurements and
   update the v0.4.1 release notes.
 
@@ -127,7 +118,7 @@ smaller, more predictable, and easier to extend to macOS.
   clean Windows machine.
 - The portable size and idle/runtime resource impact are measured and either
   reduced or explicitly justified.
-- Existing tests, Sherpa smoke tests, lifecycle tests, and Hebrew regression
+- Existing tests, Sherpa smoke tests, lifecycle tests, and voice regression
   checks pass.
 - Windows behavior is unchanged behind the new platform boundary.
 - The macOS implementation can begin in v0.5.0 without redesigning the core
@@ -144,8 +135,6 @@ maintained in [the future language-model candidate register](sherpa-onnx/future-
 
 - Compare the current Piper and Sherpa catalogs by language, locale, script,
   voice quality, and license.
-- Do not count Hebrew as an active coverage blocker: Hebrew Piper voices have
-  passed the latest manual test and remain the practical supported path.
 - Distinguish “no voice at all” from “no non-Piper voice” and “only a
   low-quality or restricted-license candidate.”
 - Rank candidates by population impact, script coverage, model maturity,
@@ -203,6 +192,19 @@ maintained in [the future language-model candidate register](sherpa-onnx/future-
   with the lightweight product goal.
 - Piper remains available as the stable fallback for existing languages.
 - The catalog contains no unverified, broken, or silently restricted model.
+
+### v0.4.2 implementation status
+
+The first language-coverage wave is complete. The four Mimic3 VITS archives
+for Afrikaans, Bengali, Gujarati, and Tswana were installed from their real
+upstream archives, verified by SHA-256, loaded with Sherpa-ONNX 1.13.6, and
+used to generate valid mono, 16-bit WAV files. Their provenance, archive sizes,
+measurements, and remaining research candidates are recorded in the
+[v0.4.2 language coverage record](language-coverage-0.4.2.md).
+
+Thai, additional Indic languages, and the long-tail language candidates remain
+research-only until their conversion path, pronunciation quality, resource
+cost, and licensing are suitable for the lightweight product.
 
 ## Sherpa-ONNX and rust-tts-wrapper evaluation
 

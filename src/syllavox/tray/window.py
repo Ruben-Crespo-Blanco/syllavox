@@ -11,11 +11,14 @@ from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
+    QFrame,
     QHBoxLayout,
     QLabel,
     QMessageBox,
     QMainWindow,
     QPushButton,
+    QScrollArea,
+    QSizePolicy,
     QVBoxLayout,
     QWidget,
 )
@@ -51,10 +54,11 @@ from syllavox.tray.window_widgets import (
 
 DEFAULT_WINDOW_WIDTH = 720
 DEFAULT_WINDOW_HEIGHT = 720
-MIN_WINDOW_WIDTH = 540
+MIN_WINDOW_WIDTH = 720
 MIN_WINDOW_HEIGHT = 600
 MAX_WINDOW_WIDTH = 3000
 MAX_WINDOW_HEIGHT = 2000
+MAX_CONTENT_WIDTH = 1200
 
 
 class MainWindow(QMainWindow):
@@ -146,6 +150,7 @@ class MainWindow(QMainWindow):
         self._rate_spinbox = self._settings_panel.rate_spinbox
         self._save_settings_button = QPushButton("Save settings")
         self._save_settings_button.setObjectName("primaryButton")
+        self._save_settings_button.setMinimumHeight(40)
         self._clear_local_data_button = (
             self._settings_panel.clear_local_data_button
         )
@@ -191,17 +196,67 @@ class MainWindow(QMainWindow):
 
         page = QWidget()
         page.setObjectName("appPage")
-        layout = QVBoxLayout(page)
-        layout.setContentsMargins(24, 22, 24, 24)
-        layout.setSpacing(12)
-        layout.addLayout(header_layout)
-        layout.addLayout(status_layout)
-        layout.addWidget(self._voice_selector)
-        layout.addWidget(self._speech_editor)
-        layout.addWidget(self._settings_panel)
-        layout.addLayout(save_layout)
+        page_layout = QVBoxLayout(page)
+        page_layout.setContentsMargins(0, 0, 0, 0)
+        page_layout.setSpacing(0)
+
+        scroll_area = QScrollArea(page)
+        scroll_area.setObjectName("contentScroll")
+        scroll_area.setFrameShape(QFrame.Shape.NoFrame)
+        scroll_area.setWidgetResizable(True)
+        scroll_area.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAlwaysOff
+        )
+        scroll_area.setVerticalScrollBarPolicy(
+            Qt.ScrollBarPolicy.ScrollBarAsNeeded
+        )
+
+        scroll_content = QWidget()
+        scroll_content.setObjectName("scrollContent")
+        scroll_content_layout = QVBoxLayout(scroll_content)
+        scroll_content_layout.setContentsMargins(0, 0, 0, 0)
+        scroll_content_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+
+        content_column = QWidget()
+        content_column.setObjectName("contentColumn")
+        content_column.setMaximumWidth(MAX_CONTENT_WIDTH)
+        content_column.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Preferred,
+        )
+        content_layout = QVBoxLayout(content_column)
+        content_layout.setContentsMargins(24, 22, 24, 24)
+        content_layout.setSpacing(12)
+        content_layout.addLayout(header_layout)
+        content_layout.addLayout(status_layout)
+        content_layout.addWidget(self._voice_selector)
+        content_layout.addWidget(self._speech_editor)
+        content_layout.addWidget(self._settings_panel)
+
+        scroll_content_layout.addWidget(content_column)
+        scroll_area.setWidget(scroll_content)
+        page_layout.addWidget(scroll_area, 1)
+
+        footer_host = QWidget()
+        footer_host.setObjectName("appFooterHost")
+        footer_host_layout = QHBoxLayout(footer_host)
+        footer_host_layout.setContentsMargins(0, 0, 0, 0)
+        footer_host_layout.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+
+        footer_column = QWidget()
+        footer_column.setObjectName("appFooter")
+        footer_column.setMaximumWidth(MAX_CONTENT_WIDTH)
+        footer_column.setSizePolicy(
+            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Fixed,
+        )
+        save_layout.setContentsMargins(24, 0, 24, 16)
+        footer_column.setLayout(save_layout)
+        footer_host_layout.addWidget(footer_column)
+        page_layout.addWidget(footer_host)
 
         self.setCentralWidget(page)
+        self.setMinimumSize(MIN_WINDOW_WIDTH, MIN_WINDOW_HEIGHT)
 
         self._restore_window_size()
         self.refresh_state_display()

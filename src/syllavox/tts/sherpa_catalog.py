@@ -291,6 +291,21 @@ def _named_speakers(
     )
 
 
+def _mimic3_speakers(
+    count: int,
+    language_code: str,
+) -> tuple[SherpaSpeakerCatalogEntry, ...]:
+    """Expose Mimic3's fixed speaker IDs with stable neutral labels."""
+    return tuple(
+        SherpaSpeakerCatalogEntry(
+            speaker_id=speaker_id,
+            name=f"Mimic3 speaker {speaker_id}",
+            language_codes=(language_code,),
+        )
+        for speaker_id in range(count)
+    )
+
+
 def get_sherpa_catalog_entries() -> tuple[SherpaCatalogEntry, ...]:
     """Return the v0.4 fixed-speaker Sherpa model catalog.
 
@@ -607,6 +622,114 @@ def get_sherpa_catalog_entries() -> tuple[SherpaCatalogEntry, ...]:
             sample_rate=44100,
             license_name="MeloTTS model terms; review before use or redistribution",
             license_url="https://k2-fsa.github.io/sherpa/onnx/tts/pretrained_models/vits.html",
+        ),
+        SherpaCatalogEntry(
+            bundle_id="vits-mimic3-af_ZA-google-nwu_low",
+            name="Mimic3 Afrikaans (Google NWU)",
+            family="vits",
+            language_codes=("af",),
+            quality="low",
+            num_speakers=9,
+            archive_url=_archive_url("vits-mimic3-af_ZA-google-nwu_low"),
+            model_path="af_ZA-google-nwu_low.onnx",
+            tokens_path="tokens.txt",
+            data_dir_path="espeak-ng-data",
+            speakers=_mimic3_speakers(9, "af"),
+            sample_rate=22050,
+            language_name="Afrikaans",
+            country_name="South Africa",
+            source_url=(
+                "https://huggingface.co/csukuangfj/"
+                "vits-mimic3-af_ZA-google-nwu_low"
+            ),
+            license_name=(
+                "CC BY-SA 4.0 voice repository; dataset terms apply"
+            ),
+            license_url="https://github.com/MycroftAI/mimic3-voices/blob/master/LICENSE",
+            archive_sha256=(
+                "a4d2649d4b5e72e04d981c843e419b41d76845eec297a9c06f73bdd44e79ac1f"
+            ),
+        ),
+        SherpaCatalogEntry(
+            bundle_id="vits-mimic3-bn-multi_low",
+            name="Mimic3 Bengali multi-speaker",
+            family="vits",
+            language_codes=("bn",),
+            quality="low",
+            num_speakers=16,
+            archive_url=_archive_url("vits-mimic3-bn-multi_low"),
+            model_path="bn-multi_low.onnx",
+            tokens_path="tokens.txt",
+            data_dir_path="espeak-ng-data",
+            speakers=_mimic3_speakers(16, "bn"),
+            sample_rate=22050,
+            language_name="Bengali",
+            country_name="Bangladesh",
+            source_url=(
+                "https://huggingface.co/csukuangfj/"
+                "vits-mimic3-bn-multi_low"
+            ),
+            license_name=(
+                "CC BY-SA 4.0 voice repository; CMU Indic and dataset terms apply"
+            ),
+            license_url="https://github.com/MycroftAI/mimic3-voices/blob/master/LICENSE",
+            archive_sha256=(
+                "a921a622e9dac5e0ad4bfe9f4a02b6d15fe6797532213718305e06312b7a0ae3"
+            ),
+        ),
+        SherpaCatalogEntry(
+            bundle_id="vits-mimic3-gu_IN-cmu-indic_low",
+            name="Mimic3 Gujarati (CMU Indic)",
+            family="vits",
+            language_codes=("gu",),
+            quality="low",
+            num_speakers=3,
+            archive_url=_archive_url("vits-mimic3-gu_IN-cmu-indic_low"),
+            model_path="gu_IN-cmu-indic_low.onnx",
+            tokens_path="tokens.txt",
+            data_dir_path="espeak-ng-data",
+            speakers=_mimic3_speakers(3, "gu"),
+            sample_rate=22050,
+            language_name="Gujarati",
+            country_name="India",
+            source_url=(
+                "https://huggingface.co/csukuangfj/"
+                "vits-mimic3-gu_IN-cmu-indic_low"
+            ),
+            license_name=(
+                "CC BY-SA 4.0 voice repository; CMU Indic and dataset terms apply"
+            ),
+            license_url="https://github.com/MycroftAI/mimic3-voices/blob/master/LICENSE",
+            archive_sha256=(
+                "ed6849f311bac71cc9f76b33d32412671ca201ea4b3b575f7b28d67e26eac6ae"
+            ),
+        ),
+        SherpaCatalogEntry(
+            bundle_id="vits-mimic3-tn_ZA-google-nwu_low",
+            name="Mimic3 Tswana (Google NWU)",
+            family="vits",
+            language_codes=("tn",),
+            quality="low",
+            num_speakers=26,
+            archive_url=_archive_url("vits-mimic3-tn_ZA-google-nwu_low"),
+            model_path="tn_ZA-google-nwu_low.onnx",
+            tokens_path="tokens.txt",
+            data_dir_path="espeak-ng-data",
+            speakers=_mimic3_speakers(26, "tn"),
+            sample_rate=22050,
+            language_name="Tswana",
+            country_name="South Africa",
+            source_url=(
+                "https://huggingface.co/csukuangfj/"
+                "vits-mimic3-tn_ZA-google-nwu_low"
+            ),
+            license_name=(
+                "CC BY-SA 4.0 voice repository; dataset terms apply"
+            ),
+            license_url="https://github.com/MycroftAI/mimic3-voices/blob/master/LICENSE",
+            archive_sha256=(
+                "7f43753eb4d3c4b17ff43c8764d2fb90204ba5e8247ee4023cfe9e0ac40816d3"
+            ),
         ),
         SherpaCatalogEntry(
             bundle_id="sherpa-onnx-supertonic-3-tts-int8-2026-05-11",

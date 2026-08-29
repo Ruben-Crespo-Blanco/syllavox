@@ -1,5 +1,44 @@
 # Changelog
 
+## [0.4.2] - 2026-08-29
+
+Syllavox 0.4.2 expands optional Sherpa-ONNX language coverage while keeping
+Piper as the default backend and fallback.
+
+### Added
+
+- Curated Sherpa-ONNX Mimic3 VITS bundles for Afrikaans, Bengali, Gujarati,
+  and Tswana.
+- Clear language, country, source, license, speaker, and sample-rate metadata
+  for the new voices.
+- SHA-256 archive verification during Sherpa bundle installation, with the
+  digest preserved in each installed manifest.
+- `scripts/validate_sherpa_catalog.py` for metadata checks and real-model WAV
+  smoke tests.
+- Release documentation recording model provenance, archive sizes, runtime
+  measurements, and the remaining language-coverage candidates.
+
+### Changed
+
+- The Sherpa voice catalog now uses readable language labels for the v0.4.2
+  additions instead of exposing locale codes as the primary language name.
+- No model files are included in the source repository or portable build;
+  models remain explicit, user-managed downloads.
+
+### Validation
+
+- All four real upstream archives installed through the Syllavox bundle
+  installer and produced valid mono, 16-bit WAV output with Sherpa-ONNX 1.13.6
+  on Windows.
+- Thai, additional Indic languages, and other long-tail gaps remain research
+  candidates pending conversion, quality, size, and license review.
+
+### Release scope
+
+Reading sessions and the accessibility-first reading interface remain deferred
+until after 1.0.0. macOS remains planned for v0.5.0, Linux for v0.6.0, and
+Android remains planned after 1.0.0.
+
 ## [0.4.1] - 2026-08-29
 
 Syllavox 0.4.1 is a hardening release that prepares the Windows application

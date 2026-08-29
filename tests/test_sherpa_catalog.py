@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 import io
 import json
 import tarfile
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
@@ -52,6 +54,11 @@ def _entry(bundle_id: str = "kitten-test") -> SherpaCatalogEntry:
         tokens_path="tokens.txt",
         voices_path="voices.bin",
         data_dir_path="espeak-ng-data",
+        language_name="English",
+        country_name="United States",
+        source_url="https://example.test/model",
+        license_name="MIT",
+        license_url="https://example.test/license",
     )
 
 
@@ -118,6 +125,102 @@ def test_sherpa_catalog_includes_non_piper_monolingual_entries() -> None:
     assert matcha.sample_rate == 16000
 
 
+def test_sherpa_catalog_includes_v042_mimic3_language_wave() -> None:
+    entries = {
+        entry.bundle_id: entry
+        for entry in SherpaCatalogClient().fetch_catalog()
+    }
+
+    expected = {
+        "vits-mimic3-af_ZA-google-nwu_low": (
+            "Afrikaans",
+            "af_ZA-google-nwu_low.onnx",
+            9,
+            "a4d2649d4b5e72e04d981c843e419b41d76845eec297a9c06f73bdd44e79ac1f",
+        ),
+        "vits-mimic3-bn-multi_low": (
+            "Bengali",
+            "bn-multi_low.onnx",
+            16,
+            "a921a622e9dac5e0ad4bfe9f4a02b6d15fe6797532213718305e06312b7a0ae3",
+        ),
+        "vits-mimic3-gu_IN-cmu-indic_low": (
+            "Gujarati",
+            "gu_IN-cmu-indic_low.onnx",
+            3,
+            "ed6849f311bac71cc9f76b33d32412671ca201ea4b3b575f7b28d67e26eac6ae",
+        ),
+        "vits-mimic3-tn_ZA-google-nwu_low": (
+            "Tswana",
+            "tn_ZA-google-nwu_low.onnx",
+            26,
+            "7f43753eb4d3c4b17ff43c8764d2fb90204ba5e8247ee4023cfe9e0ac40816d3",
+        ),
+    }
+
+    assert set(expected) <= entries.keys()
+    for bundle_id, (
+        language,
+        model_path,
+        speaker_count,
+        archive_sha256,
+    ) in expected.items():
+        entry = entries[bundle_id]
+        assert entry.family == "vits"
+        assert entry.language_label.startswith(language)
+        assert entry.model_path == model_path
+        assert entry.tokens_path == "tokens.txt"
+        assert entry.data_dir_path == "espeak-ng-data"
+        assert len(entry.speakers) == speaker_count
+        assert entry.source_url
+        assert entry.license_name
+        assert entry.license_url
+        assert entry.archive_sha256 == archive_sha256
+
+
+def test_sherpa_storage_verifies_archive_checksum(tmp_path: Path) -> None:
+    entry = _entry()
+    archive = _archive(
+        entry.bundle_id,
+        ["model.onnx", "tokens.txt", "voices.bin", "espeak-ng-data"],
+    )
+    checksum = hashlib.sha256(archive).hexdigest()
+    entry = replace(entry, archive_sha256=checksum)
+
+    def open_url(url: str, timeout: float):
+        assert url == entry.archive_url
+        assert timeout == 30.0
+        return FakeResponse(archive)
+
+    storage = SherpaVoiceStorage(
+        models_dir=tmp_path,
+        urlopen_fn=open_url,
+        timeout_seconds=30.0,
+    )
+
+    assert storage.install_bundle(entry).installed is True
+
+
+def test_sherpa_storage_rejects_archive_checksum_mismatch(tmp_path: Path) -> None:
+    entry = _entry()
+    archive = _archive(
+        entry.bundle_id,
+        ["model.onnx", "tokens.txt", "voices.bin", "espeak-ng-data"],
+    )
+    entry = replace(entry, archive_sha256="0" * 64)
+
+    def open_url(url: str, timeout: float):
+        del url, timeout
+        return FakeResponse(archive)
+
+    storage = SherpaVoiceStorage(tmp_path, open_url, 30.0)
+
+    with pytest.raises(VoiceCatalogError, match="Checksum mismatch"):
+        storage.install_bundle(entry)
+
+    assert list(tmp_path.iterdir()) == []
+
+
 def test_sherpa_storage_installs_manifest_and_deletes_bundle(
     tmp_path: Path,
 ) -> None:
@@ -146,6 +249,9 @@ def test_sherpa_storage_installs_manifest_and_deletes_bundle(
     assert storage.installed_bundle_ids() == [entry.bundle_id]
     assert manifest["family"] == "kitten"
     assert manifest["speaker_count"] == 1
+    assert manifest["language_name"] == "English"
+    assert manifest["country_name"] == "United States"
+    assert manifest["source_url"] == "https://example.test/model"
 
     removed_size = storage.delete_voice_files(
         f"sherpa-onnx:{entry.bundle_id}#sid=0"

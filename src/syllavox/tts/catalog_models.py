@@ -64,6 +64,7 @@ LANGUAGE_NAMES = {
     "ta": "Tamil",
     "te": "Telugu",
     "th": "Thai",
+    "tn": "Tswana",
     "tr": "Turkish",
     "uk": "Ukrainian",
     "uz": "Uzbek",
@@ -156,8 +157,10 @@ class SherpaCatalogEntry:
     sample_rate: int | None = None
     language_name: str | None = None
     country_name: str | None = None
+    source_url: str | None = None
     license_name: str | None = None
     license_url: str | None = None
+    archive_sha256: str | None = None
     installed: bool = False
 
     @property
@@ -174,7 +177,10 @@ class SherpaCatalogEntry:
     def language_label(self) -> str:
         """Return readable labels for single- and multi-language archives."""
         codes = self.language_codes or ("und",)
-        names = [LANGUAGE_NAMES.get(code.split("_", 1)[0], code.upper()) for code in codes]
+        names = [
+            LANGUAGE_NAMES.get(code.split("_", 1)[0], code.upper())
+            for code in codes
+        ]
         readable = self.language_name or " + ".join(names)
         code_label = ", ".join(codes)
         if self.country_name:
