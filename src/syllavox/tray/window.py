@@ -25,9 +25,8 @@ from PySide6.QtWidgets import (
 
 from syllavox.constants import (
     DEFAULT_READ_HOTKEY,
-    DEFAULT_TTS_BACKEND,
     PRODUCT_NAME,
-    SHERPA_ONNX_TTS_BACKEND,
+    WINDOWS_SAPI_TTS_BACKEND,
 )
 from syllavox.hotkey.manager import HotkeyStatus
 from syllavox.local_data import clear_local_data
@@ -39,7 +38,11 @@ from syllavox.speech.controller import SpeechController
 from syllavox.state import AppState, StateManager, StateSnapshot
 from syllavox.text_formatting import normalize_for_speech
 from syllavox.tts.base import VoiceInfo
-from syllavox.tts.catalog import PiperVoiceCatalog, SherpaVoiceCatalog
+from syllavox.tts.catalog import (
+    PiperVoiceCatalog,
+    SherpaVoiceCatalog,
+    SystemVoiceCatalog,
+)
 from syllavox.tts.errors import BackendUnavailableError, TTSBackendError
 from syllavox.tts.manager import TTSBackendManager
 from syllavox.tts.paths import get_piper_models_dir, get_sherpa_onnx_models_dir
@@ -80,6 +83,8 @@ class MainWindow(QMainWindow):
         self._speech_controller = speech_controller
         if voice_catalog is not None:
             self._voice_catalog = voice_catalog
+        elif backend_manager.backend_name() == WINDOWS_SAPI_TTS_BACKEND:
+            self._voice_catalog = SystemVoiceCatalog()
         elif backend_manager.backend_name() == "sherpa-onnx":
             self._voice_catalog = SherpaVoiceCatalog(
                 backend=backend_manager.active_backend,
@@ -92,6 +97,7 @@ class MainWindow(QMainWindow):
         self._logger = get_logger(__name__)
         self._voices: list[VoiceInfo] = []
         self._hotkey_reconfigure_callback: Callable[[str], None] | None = None
+        self._startup_reconfigure_callback: Callable[[bool], None] | None = None
 
         self._state_relay = QtCallbackRelay(self._on_state_changed)
         self._state_manager.add_listener(self._state_relay.dispatch)
@@ -113,6 +119,9 @@ class MainWindow(QMainWindow):
         self._hotkey_status_label.setObjectName("hotkeyStatus")
 
         self._voice_selector = VoiceSelectorWidget()
+        self._voice_selector.set_system_voice_mode(
+            bool(getattr(self._voice_catalog, "is_system_voice_catalog", False))
+        )
         self._voice_combo = self._voice_selector.combo
         self._find_voices_button = self._voice_selector.find_button
         self._manage_voices_button = self._voice_selector.manage_button
@@ -128,14 +137,13 @@ class MainWindow(QMainWindow):
         self._feedback_label = self._speech_editor.feedback_label
 
         self._settings_panel = SettingsPanel(
-            active_backend=(
-                SHERPA_ONNX_TTS_BACKEND
-                if backend_manager.backend_name() == "sherpa-onnx"
-                else DEFAULT_TTS_BACKEND
-            )
+            active_backend=backend_manager.backend_name(),
         )
         self._start_minimized_checkbox = (
             self._settings_panel.start_minimized_checkbox
+        )
+        self._run_on_startup_checkbox = (
+            self._settings_panel.run_on_startup_checkbox
         )
         self._remember_window_checkbox = (
             self._settings_panel.remember_window_checkbox
@@ -299,6 +307,13 @@ class MainWindow(QMainWindow):
     ) -> None:
         """Connect settings saves to the live global-hotkey manager."""
         self._hotkey_reconfigure_callback = callback
+
+    def set_startup_reconfigure_callback(
+        self,
+        callback: Callable[[bool], None],
+    ) -> None:
+        """Connect the startup preference to the live platform integration."""
+        self._startup_reconfigure_callback = callback
 
     @staticmethod
     def _bundled_icon_path() -> Path:
@@ -639,6 +654,27 @@ class MainWindow(QMainWindow):
         self._speech_editor.set_feedback(message)
 
     def _save_settings(self) -> bool:
+        current_ui_settings = self._settings_manager.settings.get("ui", {})
+        current_run_on_startup = bool(
+            current_ui_settings.get("run_on_startup", False)
+        )
+        selected_run_on_startup = self._run_on_startup_checkbox.isChecked()
+
+        if (
+            selected_run_on_startup != current_run_on_startup
+            and self._startup_reconfigure_callback is not None
+        ):
+            try:
+                self._startup_reconfigure_callback(selected_run_on_startup)
+            except Exception as exc:
+                self._run_on_startup_checkbox.setChecked(current_run_on_startup)
+                self._set_feedback(f"Startup setting was not changed: {exc}")
+                self._logger.warning(
+                    "Startup registration failed; settings were not saved: %s",
+                    exc,
+                )
+                return False
+
         current_hotkey = str(
             self._settings_manager.settings.get("hotkey", {}).get(
                 "key",

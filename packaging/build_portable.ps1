@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [switch]$SkipPyInstaller,
-    [switch]$IncludeSherpa
+    [switch]$IncludeSherpa,
+    [switch]$IncludeSapi
 )
 
 $ErrorActionPreference = "Stop"
@@ -19,12 +20,14 @@ $pyproject = Join-Path $projectRoot "pyproject.toml"
 $thirdPartyNotices = Join-Path $projectRoot "THIRD_PARTY_NOTICES.md"
 $changelog = Join-Path $projectRoot "CHANGELOG.md"
 $trayIcon = Join-Path $projectRoot "src\syllavox\assets\tray_icon.png"
+$sapiPreparationScript = Join-Path $PSScriptRoot "prepare_sapi_wrappers.py"
 $sitePackagesRoot = Join-Path $projectRoot ".venv\Lib\site-packages"
 
 # The base portable build remains Piper-only to keep its download small. The
-# same spec can include the optional native Sherpa runtime when this switch is
-# explicitly requested, producing a Sherpa-enabled portable build.
+# same spec can include the optional native Sherpa runtime and Windows SAPI
+# bridge when their switches are explicitly requested.
 $env:SYLLAVOX_INCLUDE_SHERPA = if ($IncludeSherpa) { "1" } else { "0" }
+$env:SYLLAVOX_INCLUDE_SAPI = if ($IncludeSapi) { "1" } else { "0" }
 
 if (-not (Test-Path -LiteralPath $pythonPath)) {
     throw "Project virtual environment was not found at $pythonPath"
@@ -38,6 +41,10 @@ $requiredFiles = @(
     $trayIcon,
     $pyproject
 )
+
+if ($IncludeSapi) {
+    $requiredFiles += $sapiPreparationScript
+}
 
 foreach ($requiredFile in $requiredFiles) {
     if (-not (Test-Path -LiteralPath $requiredFile -PathType Leaf)) {
@@ -61,6 +68,13 @@ if ($null -eq $versionMatch -or $versionMatch.Matches.Count -eq 0) {
 $projectVersion = $versionMatch.Matches[0].Groups[1].Value
 
 New-Item -ItemType Directory -Path $buildRoot -Force | Out-Null
+
+if ($IncludeSapi -and -not $SkipPyInstaller) {
+    & $pythonPath $sapiPreparationScript
+    if ($LASTEXITCODE -ne 0) {
+        throw "Could not prepare the registered Windows SAPI COM wrappers."
+    }
+}
 
 $buildRootFull = [System.IO.Path]::GetFullPath($buildRoot)
 $portableRootFull = [System.IO.Path]::GetFullPath($portableRoot)
@@ -113,6 +127,14 @@ $licenseSources = @(
     @{ Pattern = "pyside6-*.dist-info\licenses\LicenseRef-Qt-Commercial.txt"; Name = "qt-python-license-reference.txt" },
     @{ Pattern = "pyinstaller-*.dist-info\licenses\COPYING.txt"; Name = "pyinstaller-COPYING.txt" }
 )
+
+if ($IncludeSapi) {
+    $licenseSources += @(
+        @{ Pattern = "comtypes-*.dist-info\licenses\LICENSE*"; Name = "comtypes-LICENSE" },
+        @{ Pattern = "comtypes-*.dist-info\licenses\COPYING*"; Name = "comtypes-COPYING" },
+        @{ Pattern = "comtypes-*.dist-info\LICENSE*"; Name = "comtypes-LICENSE-root" }
+    )
+}
 
 if ($IncludeSherpa) {
     $licenseSources += @(
@@ -173,6 +195,27 @@ Get-ChildItem -LiteralPath $bundledRuntimeRoot -Directory -Filter "*.dist-info" 
         }
     }
 
+if ($IncludeSapi) {
+    $comtypesMetadata = Get-ChildItem `
+        -Path (Join-Path $sitePackagesRoot "comtypes-*.dist-info\METADATA") `
+        -File `
+        -ErrorAction SilentlyContinue `
+        | Select-Object -First 1
+
+    if ($null -ne $comtypesMetadata) {
+        $comtypesVersionLine = (
+            Select-String -LiteralPath $comtypesMetadata.FullName `
+                -Pattern "^Version:" `
+                | Select-Object -First 1
+        ).Line
+
+        if ($null -ne $comtypesVersionLine) {
+            $comtypesVersion = $comtypesVersionLine.Substring(8).Trim()
+            $inventoryLines.Add("comtypes == $comtypesVersion")
+        }
+    }
+}
+
 $inventoryLines | Set-Content -LiteralPath $dependencyInventory -Encoding UTF8
 
 $portableReadme = Join-Path $portableRoot "PORTABLE_README.txt"
@@ -186,9 +229,11 @@ under %LOCALAPPDATA%\Syllavox and are not part of this folder.
 The Chinese g2pW phonemization resource, when needed, is stored there as well
 and is downloaded on first use of a Chinese voice.
 
-This is a Piper-only build unless it was created with -IncludeSherpa. In a
-Sherpa-enabled build, model bundles are still stored under
+This is a Piper-only build unless it was created with -IncludeSherpa and/or
+-IncludeSapi. In a Sherpa-enabled build, model bundles are still stored under
 %LOCALAPPDATA%\Syllavox\models\sherpa-onnx and are not included here.
+In a SAPI-enabled build, Windows system voices are discovered through the
+Windows Speech API and are not downloaded or included here.
 
 This build does not include voice models. Install voices explicitly from the
 application's voice catalog, or restore them from the project's external
@@ -211,6 +256,15 @@ if ($IncludeSherpa -and -not (Test-Path -LiteralPath $bundledSherpaRoot -PathTyp
 
 if (-not $IncludeSherpa -and (Test-Path -LiteralPath $bundledSherpaRoot)) {
     throw "The Piper-only portable output unexpectedly contains Sherpa runtime files."
+}
+
+$bundledComtypesRoot = Join-Path $bundledRuntimeRoot "comtypes"
+if ($IncludeSapi -and -not (Test-Path -LiteralPath $bundledComtypesRoot -PathType Container)) {
+    throw "SAPI packaging was requested, but the bundled comtypes runtime was not found."
+}
+
+if (-not $IncludeSapi -and (Test-Path -LiteralPath $bundledComtypesRoot)) {
+    throw "The portable output unexpectedly contains comtypes runtime files."
 }
 
 $allowedEmbeddedModelRoots = @(

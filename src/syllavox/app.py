@@ -27,6 +27,7 @@ from .constants import (
     MAX_CONFIGURABLE_TEXT_LENGTH,
     PRODUCT_NAME,
     SHERPA_ONNX_TTS_BACKEND,
+    WINDOWS_SAPI_TTS_BACKEND,
 )
 from .hotkey.errors import (
     HotkeyActionError,
@@ -44,17 +45,25 @@ from .paths import ensure_app_directories
 from .request_ids import new_request_id
 from .runtime import ApplicationRuntime
 from .settings import SettingsManager
+from .startup import (
+    StartupRegistrationError,
+    set_startup_enabled,
+    sync_startup_registration,
+)
 from .speech.controller import SpeechController
 from .state import StateManager
 from .tray.tray_app import TrayApp
 from .tray.theme import apply_app_theme
 from .tray.window import MainWindow
 from .tts.manager import TTSBackendManager
-from .tts.catalog import PiperVoiceCatalog, SherpaVoiceCatalog
+from .tts.backend_registry import create_backend, normalize_backend_id
+from .tts.catalog import (
+    PiperVoiceCatalog,
+    SherpaVoiceCatalog,
+    SystemVoiceCatalog,
+)
 from .tts.paths import cleanup_temporary_audio_files, ensure_tts_directories
 from .tts.paths import get_piper_models_dir, get_sherpa_onnx_models_dir
-from .tts.piper import PiperBackend
-from .tts.sherpa_onnx import SherpaOnnxBackend
 
 
 @dataclass(frozen=True)
@@ -116,6 +125,20 @@ def _log_settings_result(logger, settings_manager: SettingsManager, result) -> N
     )
 
 
+def _sync_startup_registration(
+    settings_manager: SettingsManager,
+    logger: Logger,
+) -> None:
+    """Apply the persisted startup preference without blocking application startup."""
+    ui_settings = settings_manager.settings.get("ui", {})
+    enabled = bool(ui_settings.get("run_on_startup", False))
+
+    try:
+        sync_startup_registration(enabled)
+    except StartupRegistrationError as exc:
+        logger.warning("Could not reconcile Windows startup registration: %s", exc)
+
+
 def _create_audio_player() -> AudioPlayer:
     """Create the Qt-owned audio player before speech services are composed."""
     return AudioPlayer()
@@ -129,23 +152,31 @@ def _create_speech_services(
 ) -> tuple[TTSBackendManager, SpeechController]:
     """Create the configured backend, manager, and shared speech service."""
     tts_settings = settings_manager.settings.get("tts", {})
-    configured_backend = str(
+    configured_backend = normalize_backend_id(
         tts_settings.get("backend", DEFAULT_TTS_BACKEND)
-    ).strip().lower().replace("-", "_")
+    )
+
+    try:
+        backend = create_backend(configured_backend)
+    except Exception as exc:
+        logger.warning(
+            "TTS backend %r could not be created; falling back to Piper: %s",
+            configured_backend,
+            exc,
+        )
+        configured_backend = DEFAULT_TTS_BACKEND
+        backend = create_backend(DEFAULT_TTS_BACKEND)
 
     if configured_backend == SHERPA_ONNX_TTS_BACKEND:
-        backend = SherpaOnnxBackend()
         logger.info(
             "Sherpa-ONNX backend selected from settings; "
             "Piper remains the default backend."
         )
-    else:
-        if configured_backend != DEFAULT_TTS_BACKEND:
-            logger.warning(
-                "Unknown TTS backend %r; falling back to Piper.",
-                configured_backend,
-            )
-        backend = PiperBackend()
+    elif configured_backend == WINDOWS_SAPI_TTS_BACKEND:
+        logger.info(
+            "Windows SAPI backend selected from settings; system voices "
+            "will be enumerated from Windows."
+        )
 
     configured_max_text_length = int(
         tts_settings.get("max_text_length", DEFAULT_MAX_TEXT_LENGTH)
@@ -270,6 +301,7 @@ def _prepare_startup_context() -> _StartupContext:
 
     settings_manager, settings_result = _load_settings()
     _log_settings_result(logger, settings_manager, settings_result)
+    _sync_startup_registration(settings_manager, logger)
 
     state_manager = StateManager()
 
@@ -313,7 +345,10 @@ def _create_ui_services(
     speech_services: _SpeechServices,
 ) -> _UiServices:
     """Create the main window, tray integration, and focus IPC endpoint."""
-    if speech_services.backend_manager.backend_name() == "sherpa-onnx":
+    backend_name = speech_services.backend_manager.backend_name()
+    if backend_name == WINDOWS_SAPI_TTS_BACKEND:
+        voice_catalog = SystemVoiceCatalog()
+    elif backend_name == "sherpa-onnx":
         voice_catalog = SherpaVoiceCatalog(
             backend=speech_services.backend_manager.active_backend,
             models_dir=get_sherpa_onnx_models_dir(),
@@ -479,6 +514,7 @@ def _create_runtime() -> ApplicationRuntime:
     runtime.main_window.set_hotkey_reconfigure_callback(
         lambda hotkey: _reconfigure_hotkey(runtime, hotkey)
     )
+    runtime.main_window.set_startup_reconfigure_callback(set_startup_enabled)
     return runtime
 
 
@@ -506,7 +542,17 @@ def bootstrap() -> int:
         )
         runtime.tray_app.refresh()
 
-        if not QSystemTrayIcon.isSystemTrayAvailable():
+        tray_available = QSystemTrayIcon.isSystemTrayAvailable()
+        start_minimized = bool(
+            runtime.settings_manager.settings.get("ui", {}).get(
+                "start_minimized_to_tray",
+                True,
+            )
+        )
+        if not tray_available or not start_minimized:
+            runtime.tray_app.open_window()
+
+        if not tray_available:
             QMessageBox.warning(
                 runtime.main_window,
                 PRODUCT_NAME,

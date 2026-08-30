@@ -43,11 +43,20 @@ class VoiceManagementDialog(BackgroundWorkerMixin, QDialog):
         self._on_voices_changed = on_voices_changed
         self._logger = logger
         self._initialize_worker(self._on_worker_result)
+        self._system_voice_mode = bool(
+            getattr(catalog, "is_system_voice_catalog", False)
+        )
 
-        self.setWindowTitle("Manage installed voices")
+        self.setWindowTitle(
+            "System voices"
+            if self._system_voice_mode
+            else "Manage installed voices"
+        )
         self.setMinimumSize(760, 460)
 
-        self._view = VoiceManagementView()
+        self._view = VoiceManagementView(
+            system_voice_mode=self._system_voice_mode
+        )
         self._tree = self._view.tree
         self._status_label = self._view.status_label
         self._load_button = self._view.load_button
@@ -105,6 +114,15 @@ class VoiceManagementDialog(BackgroundWorkerMixin, QDialog):
         self._refresh_controls()
 
     def _refresh_controls(self) -> None:
+        if self._system_voice_mode:
+            self._view.set_controls(
+                load_enabled=False,
+                unload_enabled=False,
+                delete_enabled=False,
+                close_enabled=not self._is_worker_running(),
+            )
+            return
+
         voice_id = self._selected_voice_id()
         busy = self._is_worker_running()
         active_speech = self._state_manager.state in {
@@ -126,6 +144,10 @@ class VoiceManagementDialog(BackgroundWorkerMixin, QDialog):
         )
 
     def _refresh_resource_button(self) -> None:
+        if self._system_voice_mode:
+            self._view.set_remove_resources_enabled(False)
+            return
+
         busy = self._is_worker_running()
         can_remove = (
             not busy
@@ -140,6 +162,10 @@ class VoiceManagementDialog(BackgroundWorkerMixin, QDialog):
         self._view.set_remove_resources_enabled(can_remove)
 
     def _load_selected(self) -> None:
+        if self._system_voice_mode:
+            self._set_status("Windows manages system voices.")
+            return
+
         voice_id = self._selected_voice_id()
         if not self._can_start_operation(voice_id):
             return
@@ -150,6 +176,10 @@ class VoiceManagementDialog(BackgroundWorkerMixin, QDialog):
         )
 
     def _unload_selected(self) -> None:
+        if self._system_voice_mode:
+            self._set_status("Windows manages system voices.")
+            return
+
         voice_id = self._selected_voice_id()
         if not self._can_start_operation(voice_id):
             return
@@ -160,6 +190,12 @@ class VoiceManagementDialog(BackgroundWorkerMixin, QDialog):
         )
 
     def _delete_selected(self) -> None:
+        if self._system_voice_mode:
+            self._set_status(
+                "System voices are managed by Windows and cannot be deleted."
+            )
+            return
+
         if not self._supports_voice_deletion:
             self._set_status(
                 "Deleting model resources is not supported by this backend."

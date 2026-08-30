@@ -24,6 +24,7 @@ def get_default_settings() -> dict[str, Any]:
         },
         "ui": {
             "start_minimized_to_tray": True,
+            "run_on_startup": False,
         },
         "hotkey": {
             "enabled": True,

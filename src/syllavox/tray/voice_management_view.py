@@ -29,17 +29,34 @@ class VoiceManagementView(QWidget):
     remove_resources_requested = Signal()
     close_requested = Signal()
 
-    def __init__(self, parent: QWidget | None = None) -> None:
+    def __init__(
+        self,
+        parent: QWidget | None = None,
+        *,
+        system_voice_mode: bool = False,
+    ) -> None:
         super().__init__(parent)
+        self._system_voice_mode = system_voice_mode
 
-        intro_label = QLabel(
-            "Load a voice before speaking to avoid first-use loading delay. "
-            "Unload removes it from memory; Delete removes its local files."
+        self.intro_label = QLabel(
+            (
+                "These voices are provided by Windows SAPI and are managed "
+                "by Windows. Syllavox can select them but cannot install, "
+                "unload, or delete them."
+                if system_voice_mode
+                else "Load a voice before speaking to avoid first-use loading "
+                "delay. Unload removes it from memory; Delete removes its "
+                "local files."
+            )
         )
-        intro_label.setWordWrap(True)
+        self.intro_label.setWordWrap(True)
 
         self.tree = QTreeWidget()
-        self.tree.setHeaderLabels(["Voice", "Language", "Size", "Status"])
+        self.tree.setHeaderLabels(
+            ["Voice", "Language", "Source", "Status"]
+            if system_voice_mode
+            else ["Voice", "Language", "Size", "Status"]
+        )
         self.tree.currentItemChanged.connect(self._on_current_item_changed)
 
         self.status_label = QLabel()
@@ -52,6 +69,14 @@ class VoiceManagementView(QWidget):
             "Remove unused language data"
         )
         self.close_button = QPushButton("Close")
+
+        for button in (
+            self.load_button,
+            self.unload_button,
+            self.delete_button,
+            self.remove_resources_button,
+        ):
+            button.setVisible(not system_voice_mode)
 
         self.load_button.clicked.connect(self.load_requested)
         self.unload_button.clicked.connect(self.unload_requested)
@@ -70,7 +95,7 @@ class VoiceManagementView(QWidget):
         action_layout.addWidget(self.close_button)
 
         layout = QVBoxLayout()
-        layout.addWidget(intro_label)
+        layout.addWidget(self.intro_label)
         layout.addWidget(self.tree)
         layout.addWidget(self.status_label)
         layout.addLayout(action_layout)
@@ -86,12 +111,16 @@ class VoiceManagementView(QWidget):
         self.tree.clear()
 
         for voice in sorted(voices, key=self._voice_sort_key):
-            try:
-                size_text = self._format_size(model_size(voice.voice_id))
-            except Exception:
-                size_text = "Unknown"
+            if self._system_voice_mode:
+                source_text = "Windows SAPI"
+                status = "Available"
+            else:
+                try:
+                    source_text = self._format_size(model_size(voice.voice_id))
+                except Exception:
+                    source_text = "Unknown"
+                status = "Loaded" if is_loaded(voice.voice_id) else "Unloaded"
 
-            status = "Loaded" if is_loaded(voice.voice_id) else "Unloaded"
             item = QTreeWidgetItem(
                 self.tree,
                 [
@@ -101,7 +130,7 @@ class VoiceManagementView(QWidget):
                         language_name=voice.language_name,
                         country_name=voice.country_name,
                     ),
-                    size_text,
+                    source_text,
                     status,
                 ],
             )
@@ -135,7 +164,9 @@ class VoiceManagementView(QWidget):
 
     def set_remove_resources_enabled(self, enabled: bool) -> None:
         """Set whether unused shared language data can be removed."""
-        self.remove_resources_button.setEnabled(enabled)
+        self.remove_resources_button.setEnabled(
+            enabled and not self._system_voice_mode
+        )
 
     def set_status(self, message: str) -> None:
         self.status_label.setText(message)

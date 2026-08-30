@@ -64,6 +64,20 @@ separate works. Their licenses and redistribution terms come from each model's
 upstream release or model card and are not covered by the Sherpa-ONNX runtime
 license or Syllavox's MIT license.
 
+## Optional Windows SAPI bridge
+
+The `sapi` optional dependency adds `comtypes` to Windows environments that
+request the Windows SAPI backend:
+
+| Component | Version observed | License | Upstream source |
+|---|---:|---|---|
+| `comtypes` | 1.4.16 | MIT | [comtypes on PyPI](https://pypi.org/project/comtypes/) |
+
+`comtypes` is a lightweight Python COM bridge. It is only bundled when the
+portable build is explicitly created with `-IncludeSapi`; the ordinary
+Piper-only build excludes it. Windows SAPI voices are installed and licensed
+by Windows and are not Syllavox model files.
+
 PySide6 also installs the `PySide6_Essentials`, `PySide6_Addons`, and
 `shiboken6` packages. They carry the same Qt for Python licensing choices and
 are part of the portable-build review.
@@ -103,6 +117,12 @@ The optional packaging extra uses PyInstaller. PyInstaller is GPLv2-or-later
 with a special exception permitting distribution of programs built with it;
 the PyInstaller license and exception text must remain available with the
 release build. See [PyInstaller](https://github.com/pyinstaller/pyinstaller).
+
+The Windows installer is built with Inno Setup 6. Its installer runtime and
+compiler are separate from Syllavox and remain under Inno Setup's own license.
+See [Inno Setup](https://jrsoftware.org/isinfo.php). Inno Setup is a build and
+distribution component; it does not add a speech engine or voice model to
+Syllavox.
 
 ## Voice models and language resources
 

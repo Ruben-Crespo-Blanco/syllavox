@@ -42,11 +42,18 @@ from syllavox.constants import (
     DEFAULT_TTS_BACKEND,
     MAX_CONFIGURABLE_TEXT_LENGTH,
     SHERPA_ONNX_TTS_BACKEND,
+    WINDOWS_SAPI_TTS_BACKEND,
 )
 from syllavox.hotkey.errors import HotkeyRegistrationError
 from syllavox.hotkey.parser import parse_hotkey
+from syllavox.startup import is_startup_supported
 from syllavox.text_formatting import normalize_for_speech
 from syllavox.tts.base import VoiceInfo
+from syllavox.tts.backend_registry import (
+    backend_descriptors,
+    backend_display_name,
+    normalize_backend_id,
+)
 from syllavox.tts.catalog import format_language_label
 
 
@@ -210,6 +217,18 @@ class VoiceSelectorWidget(QWidget):
         self.combo.setEnabled(False)
         self.combo.blockSignals(False)
         self._last_voice_index = -1
+
+    def set_system_voice_mode(self, enabled: bool) -> None:
+        """Adapt catalog actions for voices owned by the operating system."""
+        self.find_button.setVisible(not enabled)
+        self.manage_button.setText(
+            "System voices…" if enabled else "Manage voices…"
+        )
+        self.manage_button.setToolTip(
+            "Choose from voices installed in Windows."
+            if enabled
+            else "Load, unload, or remove downloaded voice models."
+        )
 
     def set_voices(
         self,
@@ -423,6 +442,11 @@ class SettingsPanel(QGroupBox):
         self._active_backend = self._normalize_backend(active_backend)
 
         self.start_minimized_checkbox = QCheckBox("Start minimized to tray")
+        self.run_on_startup_checkbox = QCheckBox("Run Syllavox on Windows startup")
+        self.run_on_startup_checkbox.setToolTip(
+            "Start Syllavox automatically when you sign in to Windows."
+        )
+        self.run_on_startup_checkbox.setVisible(is_startup_supported())
         self.remember_window_checkbox = QCheckBox("Remember window size")
         self.backend_combo = QComboBox()
         self.max_text_length_spinbox = QSpinBox()
@@ -477,11 +501,11 @@ class SettingsPanel(QGroupBox):
         self.hotkey_action_combo.addItem("Speak clipboard", "speak_clipboard")
         self.hotkey_action_combo.addItem("Open window", "open_window")
         self.hotkey_action_combo.setEnabled(False)
-        self.backend_combo.addItem("Piper (default)", DEFAULT_TTS_BACKEND)
-        self.backend_combo.addItem(
-            "Sherpa-ONNX",
-            SHERPA_ONNX_TTS_BACKEND,
-        )
+        for descriptor in backend_descriptors():
+            self.backend_combo.addItem(
+                descriptor.display_name,
+                descriptor.backend_id,
+            )
         self.backend_combo.currentIndexChanged.connect(
             self._on_backend_selection_changed
         )
@@ -514,6 +538,7 @@ class SettingsPanel(QGroupBox):
         form.setVerticalSpacing(10)
         form.setContentsMargins(0, 0, 0, 0)
         form.addRow(self.start_minimized_checkbox)
+        form.addRow(self.run_on_startup_checkbox)
         form.addRow(self.remember_window_checkbox)
         form.addRow("Speech engine:", self.backend_combo)
         form.addRow(self.backend_hint_label)
@@ -582,6 +607,9 @@ class SettingsPanel(QGroupBox):
         self.start_minimized_checkbox.setChecked(
             bool(ui_settings.get("start_minimized_to_tray", True))
         )
+        self.run_on_startup_checkbox.setChecked(
+            bool(ui_settings.get("run_on_startup", False))
+        )
         self.remember_window_checkbox.setChecked(
             bool(window_settings.get("remember_position", True))
         )
@@ -645,6 +673,7 @@ class SettingsPanel(QGroupBox):
         ui_settings["start_minimized_to_tray"] = (
             self.start_minimized_checkbox.isChecked()
         )
+        ui_settings["run_on_startup"] = self.run_on_startup_checkbox.isChecked()
         window_settings["remember_position"] = (
             self.remember_window_checkbox.isChecked()
         )
@@ -669,9 +698,7 @@ class SettingsPanel(QGroupBox):
         restart_required = selected_backend != self._active_backend
 
         self.backend_restart_button.setText(
-            "Restart to use Sherpa-ONNX"
-            if selected_backend == SHERPA_ONNX_TTS_BACKEND
-            else "Restart to use Piper"
+            f"Restart to use {self._backend_display_name(selected_backend)}"
         )
         self.backend_restart_hint_label.setText(
             f"Save settings and restart to switch to "
@@ -685,6 +712,12 @@ class SettingsPanel(QGroupBox):
                 "Sherpa-ONNX is optional and uses separately installed model "
                 "bundles. It becomes active after restarting Syllavox."
             )
+        elif selected_backend == WINDOWS_SAPI_TTS_BACKEND:
+            self.backend_hint_label.setText(
+                "Windows SAPI uses voices installed in Windows; Syllavox "
+                "does not download or manage their model files. It becomes "
+                "active after restarting Syllavox."
+            )
         else:
             self.backend_hint_label.setText(
                 "Piper is the default speech engine. Its installed voices "
@@ -693,15 +726,11 @@ class SettingsPanel(QGroupBox):
 
     @staticmethod
     def _normalize_backend(value: object) -> str:
-        return str(value or DEFAULT_TTS_BACKEND).strip().lower().replace(
-            "-", "_"
-        )
+        return normalize_backend_id(value)
 
     @staticmethod
     def _backend_display_name(value: str) -> str:
-        if value == SHERPA_ONNX_TTS_BACKEND:
-            return "Sherpa-ONNX"
-        return "Piper"
+        return backend_display_name(value)
 
 
 __all__ = [

@@ -4,12 +4,12 @@ Syllavox reads text aloud on your Windows computer using local speech
 synthesis. Text is processed on the computer rather than sent to a cloud TTS
 service.
 
-This is the public MVP release, version **0.4.2**. It is a Windows portable
-application: download it, extract it, and run it. No installer or Python
-installation is required for ordinary use.
+This is the v0.5.0 development release. It is a Windows application with an
+installer for ordinary use and a portable ZIP for users who prefer an
+extract-and-run installation. No Python installation is required.
 
 For the concise public-release summary, see the
-[v0.4.2 release notes](docs/release-notes-0.4.2.md).
+[v0.5.0 release notes](docs/release-notes-0.5.0.md).
 
 ## Before you start
 
@@ -24,16 +24,28 @@ For the concise public-release summary, see the
 - The portable folder is large because it contains the application runtime and
   Chinese-language support. Syllavox uses one universal distribution; there
   are no separate Chinese and non-Chinese builds.
+- Windows SAPI is available in SAPI-enabled builds and uses voices already
+  installed in Windows; those voices are not downloaded by Syllavox.
 
 ## Install and start Syllavox
 
-1. Download `Syllavox-portable.zip` from the **Releases** page of the public
-   GitHub repository.
-2. Extract the ZIP to a folder of your choice. Do not try to run the program
+For the normal installation, download `Syllavox-<version>-setup.exe` from the
+**Releases** page and run it. The installer creates a per-user installation,
+so administrator privileges are not required. It adds a Start Menu shortcut
+and can create a desktop shortcut.
+
+The portable alternative is `Syllavox-portable.zip`:
+
+1. Extract the ZIP to a folder of your choice. Do not try to run the program
    from inside the ZIP file.
-3. Open the extracted `Syllavox` folder and double-click `Syllavox.exe`.
-4. Syllavox starts in the Windows notification area (system tray). Use the
-   tray icon to open the main window.
+2. Open the extracted `Syllavox` folder and double-click `Syllavox.exe`.
+
+By default Syllavox starts in the Windows notification area (system tray).
+Use the tray icon to open the main window. To have Syllavox launch whenever
+you sign in to Windows, open **Settings**, enable **Run Syllavox on Windows
+startup**, and select **Save settings**. This registers a per-user Windows
+startup entry; it does not run Syllavox as administrator. Combine it with
+**Start minimized to tray** if Syllavox should remain quiet in the background.
 
 If Windows displays a security warning, first confirm that the file came from
 the project's official GitHub release and compare the published checksum. The
@@ -62,6 +74,12 @@ save the selection, and use the displayed restart action. Then return to
 **Find more voices...** and install the desired bundle. The Sherpa runtime is
 optional, and model archives are downloaded only when you select them.
 
+To use Windows' installed system voices, use a SAPI-enabled build, choose
+**Windows SAPI** in **Settings**, save the selection, and select the displayed
+restart action. Open **System voices…** to review the voices Windows exposes.
+System voices are read-only in Syllavox: installation, removal, and language
+changes are handled by Windows.
+
 Piper voices are downloaded from the official
 [Piper voice catalog](https://huggingface.co/rhasspy/piper-voices). A
 Sherpa-enabled build also exposes the curated optional bundles documented in
@@ -76,6 +94,9 @@ selection. Sherpa-ONNX is optional and adds a smaller curated selection of
 non-Piper voices. The live Piper catalog can change as voices are added or
 removed, and the exact locales, speakers, and quality levels vary by language;
 use **Find more voices...** to see the current downloadable entries.
+
+Windows SAPI is a third, read-only voice source. It exposes the voices
+installed in Windows and does not have a downloadable Syllavox catalog.
 
 ### Available now
 
@@ -251,7 +272,7 @@ itself.
 
 ## Release scope and limitations
 
-Version 0.4.2 extends the focused Windows MVP with:
+Version 0.5.0 extends the focused Windows MVP with:
 
 - one universal portable Windows distribution, including Chinese support;
 - no bundled voice models;
@@ -271,6 +292,11 @@ Version 0.4.2 extends the focused Windows MVP with:
   Tswana;
 - Sherpa model discovery, atomic installation, language-aware voice selection,
   bundle loading/unloading, deletion, diagnostics, and native WAV output;
+- an optional Windows SAPI backend that discovers installed system voices,
+  uses readable language labels, and renders through a backend-neutral system
+  speech provider boundary;
+- read-only management for Windows-owned system voices, with no model files
+  downloaded or deleted by Syllavox;
 - no playback queue; new requests interrupt current playback.
 
 The maximum text length setting defaults to 1,000 characters and can be
@@ -280,8 +306,8 @@ sessions and chunked long-form playback remain deferred until after 1.0.0.
 
 macOS and Linux versions and broader language-specific compatibility work
 remain future work. Piper remains the default backend. The base portable build
-stays Piper-only to minimize download size; a Sherpa-enabled build includes
-the optional runtime, while model bundles are always downloaded separately.
+stays Piper-only to minimize download size; Sherpa and SAPI-enabled builds are
+explicit variants, while voice models are always downloaded separately.
 Reading sessions and a dedicated accessibility-first reading interface remain
 deferred until after 1.0.0.
 The internal import package is `syllavox`, and application data is stored in
@@ -315,12 +341,22 @@ python -m syllavox.main
 pytest
 ```
 
+For Windows SAPI development or a SAPI-enabled portable build, install the
+optional bridge as well:
+
+```powershell
+python -m pip install -e ".[dev,packaging,sapi]"
+.\packaging\build_portable.ps1 -IncludeSapi
+```
+
 The local API listens on `http://127.0.0.1:8765` and provides `/v1/status`,
 `/v1/speak`, `/v1/stop`, `/v1/pause`, `/v1/resume`, and `/v1/voices`.
 
 The application uses Piper behind a backend-neutral TTS interface. An
 optional Sherpa-ONNX backend is available behind the `sherpa` dependency and
-the **Sherpa-ONNX** Settings choice. See the
+the **Sherpa-ONNX** Settings choice. On Windows, an optional system-speech
+provider is available behind the `sapi` dependency and the **Windows SAPI**
+Settings choice. See the
 [Sherpa-ONNX guide](docs/sherpa-onnx-experimental.md) for setup, catalogs,
 model bundles, and benchmarking. The [future language model candidates](docs/sherpa-onnx/future-language-model-candidates.md)
 document tracks models that may be integrated later. See the project-level

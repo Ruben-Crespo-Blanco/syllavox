@@ -1,5 +1,43 @@
 # Changelog
 
+## [0.5.0] - 2026-08-29
+
+Syllavox 0.5.0 adds optional Windows SAPI system-voice support and a per-user
+Windows installer while keeping Piper as the default backend.
+
+### Added
+
+- A backend-neutral `SystemSpeechProvider` abstraction for future native
+  macOS and Linux system-speech providers.
+- Windows SAPI discovery through the optional `comtypes` dependency.
+- Stable SAPI voice IDs and readable language/country metadata.
+- Synchronous SAPI WAV rendering through `SpVoice` and `SpFileStream`, with
+  output validation and partial-file cleanup.
+- A Windows SAPI choice in Settings and a restart action for backend changes.
+- Read-only system-voice management UI; Windows remains responsible for
+  installing and removing those voices.
+- A per-user Inno Setup installer with Start Menu and optional desktop
+  shortcuts, built from the SAPI-enabled portable application.
+- An opt-in Windows startup setting that writes the current installation to
+  the signed-in user's Run registry key and supports starting minimized to
+  the tray.
+- `-IncludeSapi` portable packaging support, while the base build continues to
+  exclude the optional SAPI dependency.
+
+### Validation
+
+- Unit coverage verifies SAPI locale conversion, COM lifecycle balancing,
+  stable IDs, WAV validation, atomic output handling, and failure cleanup.
+- The development host successfully enumerates its installed Windows SAPI
+  voices. Rendering remains dependent on the local SAPI engine and is reported
+  as an actionable synthesis error when Windows rejects the request.
+
+### Release scope
+
+Reading sessions and an accessibility-first reading interface remain deferred
+until after 1.0.0. Piper remains the default, and macOS/Linux adaptations stay
+on the roadmap for later milestones.
+
 ## [0.4.2] - 2026-08-29
 
 Syllavox 0.4.2 expands optional Sherpa-ONNX language coverage while keeping

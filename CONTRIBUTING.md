@@ -3,11 +3,11 @@
 Thank you for taking an interest in Syllavox. The project is a
 local text-to-speech application maintained as a small side project.
 
-Version 0.4.2 focuses on language coverage through validated optional Sherpa
-voices while preserving the hardening work in the portable Windows
-application, Piper and Sherpa voices, a shared local speech pipeline,
-browser-selected text, configurable clipboard hotkeys, polished Qt windows,
-and a local API.
+Version 0.5.0 adds optional Windows SAPI system voices and a per-user Windows
+installer while preserving the validated Sherpa language coverage and
+hardening work in the portable Windows application, Piper and Sherpa voices,
+a shared local speech pipeline, browser-selected text, configurable
+clipboard hotkeys, polished Qt windows, and a local API.
 Contributions should preserve
 that local-first behavior unless a change is explicitly discussed first.
 
@@ -33,6 +33,12 @@ python -m venv .venv
 python -m pip install -e ".[dev,packaging]"
 ```
 
+To develop or package the Windows SAPI backend, include the optional bridge:
+
+```powershell
+python -m pip install -e ".[dev,packaging,sapi]"
+```
+
 Run the application with:
 
 ```powershell
@@ -47,6 +53,28 @@ pytest
 
 The browser extension has its own JavaScript checks. From the `extension\`
 directory, run `npm test` when working on the extension.
+
+## Building the Windows installer
+
+The installer is built from the SAPI-enabled portable folder with Inno Setup
+6. Install Inno Setup so `ISCC.exe` is available on `PATH`, or set the
+`INNO_SETUP_COMPILER` environment variable to its full path. Then run:
+
+```powershell
+.\packaging\build_installer.ps1
+```
+
+This first builds the standard Piper/SAPI portable artifact and writes the
+installer to `build\installer\`. To include the optional Sherpa runtime as
+well, run:
+
+```powershell
+.\packaging\build_installer.ps1 -IncludeSherpa
+```
+
+Use `-SkipPortableBuild` when the matching portable folder has already been
+built. The installer is per-user and does not require administrator rights.
+Do not commit generated `build\` output.
 
 ## Working principles
 

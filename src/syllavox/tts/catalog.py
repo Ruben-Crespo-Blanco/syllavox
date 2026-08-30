@@ -15,6 +15,7 @@ from syllavox.tts.catalog_models import (
     VoiceCatalogEntry,
     format_language_label,
 )
+from syllavox.tts.errors import VoiceCatalogError
 from syllavox.tts.voice_storage import PiperVoiceStorage, SherpaVoiceStorage
 
 
@@ -161,12 +162,76 @@ class SherpaVoiceCatalog:
         return 0
 
 
+class SystemVoiceCatalog:
+    """Read-only catalog facade for voices owned by the operating system."""
+
+    supports_voice_deletion = False
+    supports_resource_cleanup = False
+    is_system_voice_catalog = True
+
+    display_name = "System voices"
+    catalog_url = None
+
+    @property
+    def models_dir(self):
+        """System voices do not have a Syllavox-managed model directory."""
+        return None
+
+    def fetch_catalog(self) -> list[VoiceCatalogEntry]:
+        """System voices are discovered through the active speech provider."""
+        return []
+
+    def installed_catalog_ids(self) -> set[str]:
+        return set()
+
+    def voice_model_size(self, voice_id: str) -> int:
+        del voice_id
+        return 0
+
+    def is_voice_installed(self, voice_id: str) -> bool:
+        del voice_id
+        return True
+
+    def install_voice(self, entry: VoiceCatalogEntry) -> VoiceCatalogEntry:
+        del entry
+        raise VoiceCatalogError(
+            "System voices are installed and managed by the operating system."
+        )
+
+    def delete_voice_files(self, voice_id: str) -> int:
+        del voice_id
+        raise VoiceCatalogError(
+            "System voices are managed by Windows and cannot be deleted from Syllavox."
+        )
+
+    def voice_ids_for_resource(
+        self,
+        voice_id: str,
+        voice_ids: list[str],
+    ) -> list[str]:
+        return [voice_id] if voice_id in voice_ids else []
+
+    def g2pw_size(self) -> int:
+        return 0
+
+    def has_installed_pinyin_voice(
+        self,
+        excluding_voice_id: str | None = None,
+    ) -> bool:
+        del excluding_voice_id
+        return False
+
+    def delete_unused_g2pw(self) -> int:
+        return 0
+
+
 __all__ = [
     "PIPER_VOICES_BASE_URL",
     "PIPER_VOICES_CATALOG_URL",
     "PiperVoiceCatalog",
     "SherpaCatalogEntry",
     "SherpaVoiceCatalog",
+    "SystemVoiceCatalog",
     "VoiceCatalogEntry",
     "format_language_label",
 ]

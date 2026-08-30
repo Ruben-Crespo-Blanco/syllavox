@@ -25,6 +25,9 @@ onnx_binaries = collect_dynamic_libs("onnxruntime")
 sherpa_datas = []
 sherpa_binaries = []
 sherpa_hiddenimports = []
+sapi_datas = []
+sapi_binaries = []
+sapi_hiddenimports = []
 
 if os.environ.get("SYLLAVOX_INCLUDE_SHERPA") == "1":
     try:
@@ -38,6 +41,29 @@ if os.environ.get("SYLLAVOX_INCLUDE_SHERPA") == "1":
     sherpa_datas = collect_data_files("sherpa_onnx", include_py_files=True)
     sherpa_binaries = collect_dynamic_libs("sherpa_onnx")
     sherpa_hiddenimports = collect_submodules("sherpa_onnx")
+
+if os.environ.get("SYLLAVOX_INCLUDE_SAPI") == "1":
+    try:
+        import comtypes  # noqa: F401
+    except ImportError as exc:
+        raise RuntimeError(
+            "SAPI packaging was requested, but the optional dependency "
+            "is not installed. Run: python -m pip install -e .[sapi]"
+        ) from exc
+
+    # Only the generated COM wrappers and runtime bridge are needed. A full
+    # collect_submodules("comtypes") would pull in comtypes' test suite and
+    # unrelated server helpers, defeating the small optional-build goal.
+    sapi_datas = collect_data_files("comtypes.gen", include_py_files=True)
+    sapi_hiddenimports = [
+        "comtypes",
+        "comtypes.client",
+        "comtypes.gen",
+        "comtypes.gen.SpeechLib",
+        *collect_submodules("comtypes.gen"),
+        "comtypes.automation",
+        "comtypes.typeinfo",
+    ]
 tray_icon_datas = [
     (
         str(PROJECT_ROOT / "src" / "syllavox" / "assets" / "tray_icon.png"),
@@ -100,6 +126,12 @@ if os.environ.get("SYLLAVOX_INCLUDE_SHERPA") != "1":
         "sherpa_onnx.*",
     ])
 
+if os.environ.get("SYLLAVOX_INCLUDE_SAPI") != "1":
+    runtime_excludes.extend([
+        "comtypes",
+        "comtypes.*",
+    ])
+
 excluded_qt_binary_suffixes = {
     "pyside6/qt6quick.dll",
     "pyside6/qt6qml.dll",
@@ -132,6 +164,7 @@ analysis = Analysis(
         + g2pw_binaries
         + onnx_binaries
         + sherpa_binaries
+        + sapi_binaries
     ),
     datas=(
         piper_datas
@@ -139,6 +172,7 @@ analysis = Analysis(
         + unicode_rbnf_datas
         + tray_icon_datas
         + sherpa_datas
+        + sapi_datas
     ),
     hiddenimports=[
         "piper",
@@ -155,6 +189,7 @@ analysis = Analysis(
         "onnxruntime",
         "onnxruntime.capi._pybind_state",
         *sherpa_hiddenimports,
+        *sapi_hiddenimports,
     ],
     hookspath=[],
     hooksconfig={},

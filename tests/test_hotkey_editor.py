@@ -54,6 +54,16 @@ def test_settings_panel_persists_selected_read_hotkey() -> None:
     assert settings["hotkey"]["key"] == "Ctrl+Shift+R"
 
 
+def test_settings_panel_persists_startup_preference() -> None:
+    panel = SettingsPanel()
+    settings = get_default_settings()
+
+    panel.run_on_startup_checkbox.setChecked(True)
+    panel.write_settings(settings, voice_id=None)
+
+    assert settings["ui"]["run_on_startup"] is True
+
+
 def test_settings_panel_exposes_visible_hotkey_apply_action() -> None:
     panel = SettingsPanel()
     applied: list[bool] = []

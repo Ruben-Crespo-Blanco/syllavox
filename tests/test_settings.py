@@ -83,6 +83,7 @@ def test_missing_keys_are_repaired(monkeypatch, tmp_path: Path) -> None:
     assert repaired["window"]["height"] == 720
     assert repaired["window"]["remember_position"] is True
     assert repaired["ui"]["start_minimized_to_tray"] is True
+    assert repaired["ui"]["run_on_startup"] is False
     assert repaired["hotkey"]["enabled"] is True
     assert repaired["hotkey"]["action"] == "speak_clipboard"
     assert repaired["tts"]["backend"] == "piper"
