@@ -46,6 +46,11 @@ class VoiceManagementDialog(BackgroundWorkerMixin, QDialog):
         self._system_voice_mode = bool(
             getattr(catalog, "is_system_voice_catalog", False)
         )
+        self._system_voice_name = getattr(
+            catalog,
+            "system_voice_name",
+            "Windows SAPI",
+        )
 
         self.setWindowTitle(
             "System voices"
@@ -55,7 +60,8 @@ class VoiceManagementDialog(BackgroundWorkerMixin, QDialog):
         self.setMinimumSize(760, 460)
 
         self._view = VoiceManagementView(
-            system_voice_mode=self._system_voice_mode
+            system_voice_mode=self._system_voice_mode,
+            system_voice_name=self._system_voice_name,
         )
         self._tree = self._view.tree
         self._status_label = self._view.status_label
@@ -163,7 +169,9 @@ class VoiceManagementDialog(BackgroundWorkerMixin, QDialog):
 
     def _load_selected(self) -> None:
         if self._system_voice_mode:
-            self._set_status("Windows manages system voices.")
+            self._set_status(
+                f"{self._system_voice_name} manages system voices."
+            )
             return
 
         voice_id = self._selected_voice_id()
@@ -177,7 +185,9 @@ class VoiceManagementDialog(BackgroundWorkerMixin, QDialog):
 
     def _unload_selected(self) -> None:
         if self._system_voice_mode:
-            self._set_status("Windows manages system voices.")
+            self._set_status(
+                f"{self._system_voice_name} manages system voices."
+            )
             return
 
         voice_id = self._selected_voice_id()
@@ -192,7 +202,8 @@ class VoiceManagementDialog(BackgroundWorkerMixin, QDialog):
     def _delete_selected(self) -> None:
         if self._system_voice_mode:
             self._set_status(
-                "System voices are managed by Windows and cannot be deleted."
+                f"System voices are managed by {self._system_voice_name} "
+                "and cannot be deleted."
             )
             return
 

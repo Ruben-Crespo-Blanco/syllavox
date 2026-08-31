@@ -3,11 +3,10 @@
 Thank you for taking an interest in Syllavox. The project is a
 local text-to-speech application maintained as a small side project.
 
-Version 0.5.0 adds optional Windows SAPI system voices and a per-user Windows
-installer while preserving the validated Sherpa language coverage and
-hardening work in the portable Windows application, Piper and Sherpa voices,
-a shared local speech pipeline, browser-selected text, configurable
-clipboard hotkeys, polished Qt windows, and a local API.
+Version 0.6.0 adds the first macOS adaptation while preserving the validated
+Windows SAPI installer path, Sherpa language coverage, hardening work, Piper
+and Sherpa voices, a shared local speech pipeline, browser-selected text,
+configurable clipboard hotkeys, polished Qt windows, and a local API.
 Contributions should preserve
 that local-first behavior unless a change is explicitly discussed first.
 
@@ -25,7 +24,8 @@ duplicated work and makes it possible to agree on the scope.
 
 ## Development setup
 
-Development currently targets Windows. From the project directory:
+Windows remains a fully supported development and distribution target. From
+the project directory on Windows:
 
 ```powershell
 python -m venv .venv
@@ -50,6 +50,22 @@ Run the automated tests with:
 ```powershell
 pytest
 ```
+
+The macOS adaptation must be developed and packaged on macOS (or a macOS CI
+runner), because the native SDK tools and system speech commands are not
+available on Windows. On macOS, use:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev,packaging,macos]"
+pytest
+bash packaging/build_macos.sh --skip-dmg
+```
+
+Add `--include-sherpa` when building the optional Sherpa-ONNX variant. The
+macOS script writes app, archive, and checksum artifacts under `build/macos/`;
+do not commit generated output.
 
 The browser extension has its own JavaScript checks. From the `extension\`
 directory, run `npm test` when working on the extension.

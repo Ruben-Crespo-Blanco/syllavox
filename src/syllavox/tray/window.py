@@ -25,7 +25,9 @@ from PySide6.QtWidgets import (
 
 from syllavox.constants import (
     DEFAULT_READ_HOTKEY,
+    MACOS_SYSTEM_TTS_BACKEND,
     PRODUCT_NAME,
+    SHERPA_ONNX_TTS_BACKEND,
     WINDOWS_SAPI_TTS_BACKEND,
 )
 from syllavox.hotkey.manager import HotkeyStatus
@@ -43,6 +45,7 @@ from syllavox.tts.catalog import (
     SherpaVoiceCatalog,
     SystemVoiceCatalog,
 )
+from syllavox.tts.backend_registry import backend_display_name
 from syllavox.tts.errors import BackendUnavailableError, TTSBackendError
 from syllavox.tts.manager import TTSBackendManager
 from syllavox.tts.paths import get_piper_models_dir, get_sherpa_onnx_models_dir
@@ -83,9 +86,16 @@ class MainWindow(QMainWindow):
         self._speech_controller = speech_controller
         if voice_catalog is not None:
             self._voice_catalog = voice_catalog
-        elif backend_manager.backend_name() == WINDOWS_SAPI_TTS_BACKEND:
-            self._voice_catalog = SystemVoiceCatalog()
-        elif backend_manager.backend_name() == "sherpa-onnx":
+        elif backend_manager.backend_name() in {
+            WINDOWS_SAPI_TTS_BACKEND,
+            MACOS_SYSTEM_TTS_BACKEND,
+        }:
+            self._voice_catalog = SystemVoiceCatalog(
+                system_voice_name=backend_display_name(
+                    backend_manager.backend_name()
+                )
+            )
+        elif backend_manager.backend_name() == SHERPA_ONNX_TTS_BACKEND:
             self._voice_catalog = SherpaVoiceCatalog(
                 backend=backend_manager.active_backend,
                 models_dir=get_sherpa_onnx_models_dir(),
@@ -119,8 +129,16 @@ class MainWindow(QMainWindow):
         self._hotkey_status_label.setObjectName("hotkeyStatus")
 
         self._voice_selector = VoiceSelectorWidget()
+        system_voice_mode = bool(
+            getattr(self._voice_catalog, "is_system_voice_catalog", False)
+        )
         self._voice_selector.set_system_voice_mode(
-            bool(getattr(self._voice_catalog, "is_system_voice_catalog", False))
+            system_voice_mode,
+            getattr(
+                self._voice_catalog,
+                "system_voice_name",
+                "the operating system",
+            ),
         )
         self._voice_combo = self._voice_selector.combo
         self._find_voices_button = self._voice_selector.find_button

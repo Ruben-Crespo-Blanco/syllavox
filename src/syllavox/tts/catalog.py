@@ -172,6 +172,9 @@ class SystemVoiceCatalog:
     display_name = "System voices"
     catalog_url = None
 
+    def __init__(self, system_voice_name: str = "Windows SAPI") -> None:
+        self.system_voice_name = system_voice_name
+
     @property
     def models_dir(self):
         """System voices do not have a Syllavox-managed model directory."""
@@ -201,7 +204,8 @@ class SystemVoiceCatalog:
     def delete_voice_files(self, voice_id: str) -> int:
         del voice_id
         raise VoiceCatalogError(
-            "System voices are managed by Windows and cannot be deleted from Syllavox."
+            f"{self.system_voice_name} voices are managed by the operating "
+            "system and cannot be deleted from Syllavox."
         )
 
     def voice_ids_for_resource(

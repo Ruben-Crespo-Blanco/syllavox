@@ -21,7 +21,7 @@ def _project_version_from_pyproject() -> str:
 
 
 def test_release_version_is_consistent_across_project_metadata() -> None:
-    assert PROJECT_VERSION == "0.5.0"
+    assert PROJECT_VERSION == "0.6.0"
     assert _project_version_from_pyproject() == PROJECT_VERSION
 
     for manifest_name in ("manifest.json", "manifest.firefox.json"):
@@ -52,6 +52,35 @@ def test_development_dependencies_declare_the_test_runner() -> None:
         requirement.startswith("pytest")
         for requirement in development_requirements
     )
+
+
+def test_macos_packaging_metadata_and_build_script_are_present() -> None:
+    project = tomllib.loads(
+        (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    )
+    macos_requirements = project["project"]["optional-dependencies"]["macos"]
+
+    assert any(
+        requirement.startswith("pyobjc-framework-Cocoa")
+        for requirement in macos_requirements
+    )
+    assert any(
+        requirement.startswith("pyobjc-framework-ServiceManagement")
+        for requirement in macos_requirements
+    )
+
+    info_plist = (PROJECT_ROOT / "packaging" / "macos" / "Info.plist").read_text(
+        encoding="utf-8"
+    )
+    macos_build_script = (PROJECT_ROOT / "packaging" / "build_macos.sh").read_text(
+        encoding="utf-8"
+    )
+
+    assert "com.ruben-crespo-blanco.syllavox" in info_plist
+    assert "LSMinimumSystemVersion" in info_plist
+    assert '[[ "$(uname -s)" == "Darwin" ]]' in macos_build_script
+    assert "hdiutil create" in macos_build_script
+    assert "notarytool submit" in macos_build_script
 
 
 def test_windows_installer_is_per_user_and_uses_the_portable_output() -> None:

@@ -34,15 +34,17 @@ class VoiceManagementView(QWidget):
         parent: QWidget | None = None,
         *,
         system_voice_mode: bool = False,
+        system_voice_name: str = "Windows SAPI",
     ) -> None:
         super().__init__(parent)
         self._system_voice_mode = system_voice_mode
+        self._system_voice_name = system_voice_name
 
         self.intro_label = QLabel(
             (
-                "These voices are provided by Windows SAPI and are managed "
-                "by Windows. Syllavox can select them but cannot install, "
-                "unload, or delete them."
+                f"These voices are provided by {system_voice_name} and are "
+                "managed by the operating system. Syllavox can select them "
+                "but cannot install, unload, or delete them."
                 if system_voice_mode
                 else "Load a voice before speaking to avoid first-use loading "
                 "delay. Unload removes it from memory; Delete removes its "
@@ -112,7 +114,7 @@ class VoiceManagementView(QWidget):
 
         for voice in sorted(voices, key=self._voice_sort_key):
             if self._system_voice_mode:
-                source_text = "Windows SAPI"
+                source_text = self._system_voice_name
                 status = "Available"
             else:
                 try:

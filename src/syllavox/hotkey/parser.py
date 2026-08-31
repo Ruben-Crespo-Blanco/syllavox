@@ -197,6 +197,20 @@ def _canonical_key_name(name: str) -> str:
     return aliases.get(name, name.title())
 
 
+def hotkey_hint(platform_name: str | None = None) -> str:
+    """Return the platform-appropriate hint for the shared hotkey syntax."""
+    import sys
+
+    current_platform = platform_name or sys.platform
+    if current_platform == "darwin":
+        return (
+            "Use Ctrl, Alt (Option), Shift, or Meta (Command) plus one "
+            "supported key."
+        )
+
+    return "Use Ctrl, Alt, Shift, or Win plus one supported key."
+
+
 __all__ = [
     "HotkeyBinding",
     "MOD_ALT",
@@ -206,5 +220,6 @@ __all__ = [
     "MOD_WIN",
     "MODIFIER_VALUES",
     "NAMED_VIRTUAL_KEYS",
+    "hotkey_hint",
     "parse_hotkey",
 ]

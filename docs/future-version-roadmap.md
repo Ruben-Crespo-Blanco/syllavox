@@ -1,10 +1,10 @@
 # Syllavox Future-Version Roadmap
 
 This roadmap maps planned development to proposed versions. The version
-assignments are planning targets, not commitments. The current public release
-is the language coverage release, version 0.4.2; v0.5.0 is the current
-development milestone and its release remains pending packaging and manual
-validation.
+assignments are planning targets, not commitments. The current development
+milestone is v0.6.0, which adds the shared macOS adaptation and native macOS
+packaging path. A native Mac build and manual validation are still required
+before a macOS artifact is published.
 
 ## Version plan
 
@@ -499,6 +499,80 @@ release publication still requires a successful rendering check on a Windows
 installation with a functioning SAPI engine, a locally available Inno Setup
 compiler for the installer artifact, plus the planned portable size and
 clean-launch measurements.
+
+## v0.6.0 implementation plan and status
+
+v0.6.0 adapts the existing Syllavox codebase for macOS. It keeps the Windows
+implementation intact, reuses the backend-neutral speech, playback, settings,
+catalog, and UI contracts, and adds only the platform services that require
+native macOS behavior.
+
+### Platform services
+
+- Keep platform selection behind the existing backend registry, hotkey factory,
+  startup boundary, data-path helper, and instance-lock boundary.
+- Add a lazy macOS AppKit global-hotkey backend. It should register both global
+  and local key monitors, map the existing configurable shortcut grammar to
+  Command/Option/Control/Shift flags, unregister cleanly, and explain Input
+  Monitoring permission failures.
+- Add macOS startup registration. Prefer `SMAppService` for a bundled app;
+  keep a direct per-user LaunchAgent plist fallback for source checkouts and
+  test seams. Never write system-wide startup configuration.
+- Preserve the existing Qt tray/window lifecycle and use the cross-platform
+  Qt lock-file path where the Windows mutex is unavailable.
+
+### macOS system speech
+
+- Implement the shared `SystemSpeechProvider` contract with Apple's built-in
+  `/usr/bin/say` voice discovery and `/usr/bin/afconvert` WAV conversion.
+- Convert locale identifiers to readable language names while retaining the
+  exact locale in `VoiceInfo`.
+- Use temporary AIFF/WAV files, validate mono 16-bit output, atomically move
+  the final WAV into Syllavox's normal request/retained-audio location, and
+  remove intermediates on success and failure.
+- Keep system voice management read-only: macOS owns installation, removal,
+  and voice configuration.
+
+### Packaging and distribution
+
+- Add a macOS Info.plist with the application identifier and minimum supported
+  macOS version, and generate an `.icns` file from the existing Syllavox icon.
+- Extend the PyInstaller specification with a macOS `.app` bundle while
+  leaving the Windows `COLLECT` path unchanged.
+- Add a native-only `packaging/build_macos.sh` that creates an architecture-
+  specific app, ZIP, optional DMG, checksums, and optional signed/notarized
+  output. The script must refuse to run on non-macOS hosts.
+- Build and test on native arm64 and x86_64 macOS runners. Signing and
+  notarization are release steps, not prerequisites for local development.
+
+### Dependencies and resource policy
+
+- Keep PyObjC optional and macOS-conditional so Windows and Linux users do not
+  acquire AppKit or Service Management dependencies.
+- Use the built-in speech tools for the initial system-voice path to avoid
+  adding a second speech runtime or model collection to the base app.
+- Keep Sherpa-ONNX optional and keep model downloads outside the application
+  artifact. Do not add Piper models to the repository or the macOS bundle.
+
+### Acceptance criteria
+
+- The existing Windows tests and packaging behavior remain green.
+- Simulated macOS tests cover backend selection, readable voice metadata, WAV
+  validation and cleanup, hotkey matching and permission failure, startup plist
+  creation/removal, and macOS-aware UI text.
+- On a native Mac, the app launches from the `.app`, discovers at least one
+  installed system voice, speaks a short sentence, exports a WAV, registers a
+  hotkey after permission is granted, and starts at login when enabled.
+- The native artifact is checked on both Apple Silicon and Intel, with cold
+  launch, system-speech synthesis, interrupt/stop, data-path, and clean-exit
+  checks recorded before release.
+
+### Current implementation status
+
+The shared macOS adapters, system-speech provider, UI integration, PyInstaller
+bundle branch, Info.plist, native build script, and simulated regression tests
+are implemented. The remaining v0.6 gate is native macOS build and manual
+verification; that work cannot be completed on the current Windows machine.
 
 ## Sherpa-ONNX and rust-tts-wrapper evaluation
 

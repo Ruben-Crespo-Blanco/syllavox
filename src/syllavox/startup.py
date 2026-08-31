@@ -1,9 +1,9 @@
-"""User-controlled application startup registration.
+"""User-controlled, per-user application startup registration.
 
-Windows startup registration lives behind this small module so the settings
-and application composition layers do not depend directly on the Windows
-registry. The registration is per-user and opt-in; it does not require
-administrator privileges and does not run the application as administrator.
+The application and UI use this module as a platform-neutral boundary. The
+Windows Registry implementation remains here for compatibility with v0.5,
+while macOS registration is delegated to a lazily imported LaunchAgent/
+Service Management adapter.
 """
 
 from __future__ import annotations
@@ -26,7 +26,16 @@ class StartupRegistrationError(RuntimeError):
 
 def is_startup_supported(platform_name: str | None = None) -> bool:
     """Return whether this host supports Syllavox's startup integration."""
-    return (platform_name or sys.platform) == "win32"
+    return (platform_name or sys.platform) in {"win32", "darwin"}
+
+
+def startup_platform_name(platform_name: str | None = None) -> str:
+    """Return the user-facing name of the active startup integration."""
+    current_platform = platform_name or sys.platform
+    return {
+        "win32": "Windows",
+        "darwin": "macOS",
+    }.get(current_platform, "this platform")
 
 
 def build_startup_command(
@@ -70,10 +79,18 @@ def set_startup_enabled(
     ``registry_module`` is an internal test seam; production callers should
     leave it unset so the standard Windows registry module is used.
     """
-    if not is_startup_supported():
+    current_platform = sys.platform
+
+    if current_platform == "darwin":
+        from .macos_startup import set_macos_startup_enabled
+
+        set_macos_startup_enabled(enabled, platform_name=current_platform)
+        return
+
+    if current_platform != "win32":
         if enabled:
             raise StartupRegistrationError(
-                "Run on startup is currently available only on Windows."
+                "Run on startup is currently unavailable on this platform."
             )
         return
 
@@ -133,7 +150,7 @@ def set_startup_enabled(
 
 
 def sync_startup_registration(enabled: bool) -> None:
-    """Reconcile the persisted preference with Windows startup registration."""
+    """Reconcile the persisted preference with the host startup service."""
     if not is_startup_supported():
         return
 
@@ -146,5 +163,6 @@ __all__ = [
     "build_startup_command",
     "is_startup_supported",
     "set_startup_enabled",
+    "startup_platform_name",
     "sync_startup_registration",
 ]

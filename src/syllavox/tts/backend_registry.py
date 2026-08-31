@@ -9,6 +9,7 @@ from dataclasses import dataclass
 
 from syllavox.constants import (
     DEFAULT_TTS_BACKEND,
+    MACOS_SYSTEM_TTS_BACKEND,
     SHERPA_ONNX_TTS_BACKEND,
     WINDOWS_SAPI_TTS_BACKEND,
 )
@@ -33,6 +34,11 @@ _BACKEND_DESCRIPTORS = (
         "Windows SAPI",
         is_system_backend=True,
     ),
+    BackendDescriptor(
+        MACOS_SYSTEM_TTS_BACKEND,
+        "macOS system voices",
+        is_system_backend=True,
+    ),
 )
 
 
@@ -46,6 +52,8 @@ def backend_descriptors() -> list[BackendDescriptor]:
     descriptors = list(_BACKEND_DESCRIPTORS[:2])
     if sys.platform == "win32" and importlib.util.find_spec("comtypes"):
         descriptors.append(_BACKEND_DESCRIPTORS[2])
+    if sys.platform == "darwin":
+        descriptors.append(_BACKEND_DESCRIPTORS[3])
     return descriptors
 
 
@@ -95,10 +103,26 @@ def create_backend(
         return SherpaOnnxBackend()
 
     if normalized == WINDOWS_SAPI_TTS_BACKEND:
+        if sys.platform != "win32":
+            raise BackendUnavailableError(
+                "Windows SAPI is available only on Windows."
+            )
+
         from syllavox.tts.system_speech import SystemSpeechBackend
         from syllavox.tts.windows_sapi import WindowsSapiProvider
 
         return SystemSpeechBackend(WindowsSapiProvider())
+
+    if normalized == MACOS_SYSTEM_TTS_BACKEND:
+        if sys.platform != "darwin":
+            raise BackendUnavailableError(
+                "macOS system speech is available only on macOS."
+            )
+
+        from syllavox.tts.macos_speech import MacOSSystemSpeechProvider
+        from syllavox.tts.system_speech import SystemSpeechBackend
+
+        return SystemSpeechBackend(MacOSSystemSpeechProvider())
 
     raise BackendUnavailableError(f"Unknown TTS backend: {backend_id}")
 

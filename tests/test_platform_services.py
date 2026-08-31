@@ -8,7 +8,7 @@ from syllavox.hotkey.factory import UnsupportedGlobalHotkey
 
 
 def test_unsupported_hotkey_backend_has_safe_noop_lifecycle() -> None:
-    backend = UnsupportedGlobalHotkey("darwin")
+    backend = UnsupportedGlobalHotkey("linux")
 
     assert backend.is_registered() is False
     assert backend.current_hotkey() is None
@@ -17,7 +17,7 @@ def test_unsupported_hotkey_backend_has_safe_noop_lifecycle() -> None:
 
     with pytest.raises(
         HotkeyUnsupportedPlatformError,
-        match="not implemented for 'darwin'",
+        match="not implemented for 'linux'",
     ):
         backend.register("Ctrl+Alt+R")
 
@@ -36,4 +36,21 @@ def test_hotkey_factory_keeps_windows_selection_isolated(monkeypatch) -> None:
     backend = hotkey_factory.create_global_hotkey_backend(callback)
 
     assert isinstance(backend, FakeWindowsBackend)
+    assert calls == [callback]
+
+
+def test_hotkey_factory_selects_macos_backend(monkeypatch) -> None:
+    calls: list[object] = []
+
+    class FakeMacOSBackend:
+        def __init__(self, callback) -> None:
+            calls.append(callback)
+
+    monkeypatch.setattr(hotkey_factory.sys, "platform", "darwin")
+    monkeypatch.setattr(hotkey_factory, "MacOSGlobalHotkey", FakeMacOSBackend)
+
+    callback = lambda: None
+    backend = hotkey_factory.create_global_hotkey_backend(callback)
+
+    assert isinstance(backend, FakeMacOSBackend)
     assert calls == [callback]

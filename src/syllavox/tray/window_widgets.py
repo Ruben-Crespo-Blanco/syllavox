@@ -41,12 +41,13 @@ from syllavox.constants import (
     DEFAULT_READ_HOTKEY,
     DEFAULT_TTS_BACKEND,
     MAX_CONFIGURABLE_TEXT_LENGTH,
+    MACOS_SYSTEM_TTS_BACKEND,
     SHERPA_ONNX_TTS_BACKEND,
     WINDOWS_SAPI_TTS_BACKEND,
 )
 from syllavox.hotkey.errors import HotkeyRegistrationError
-from syllavox.hotkey.parser import parse_hotkey
-from syllavox.startup import is_startup_supported
+from syllavox.hotkey.parser import hotkey_hint, parse_hotkey
+from syllavox.startup import is_startup_supported, startup_platform_name
 from syllavox.text_formatting import normalize_for_speech
 from syllavox.tts.base import VoiceInfo
 from syllavox.tts.backend_registry import (
@@ -218,14 +219,18 @@ class VoiceSelectorWidget(QWidget):
         self.combo.blockSignals(False)
         self._last_voice_index = -1
 
-    def set_system_voice_mode(self, enabled: bool) -> None:
+    def set_system_voice_mode(
+        self,
+        enabled: bool,
+        system_voice_name: str = "the operating system",
+    ) -> None:
         """Adapt catalog actions for voices owned by the operating system."""
         self.find_button.setVisible(not enabled)
         self.manage_button.setText(
             "System voices…" if enabled else "Manage voices…"
         )
         self.manage_button.setToolTip(
-            "Choose from voices installed in Windows."
+            f"Choose from voices installed in {system_voice_name}."
             if enabled
             else "Load, unload, or remove downloaded voice models."
         )
@@ -442,9 +447,10 @@ class SettingsPanel(QGroupBox):
         self._active_backend = self._normalize_backend(active_backend)
 
         self.start_minimized_checkbox = QCheckBox("Start minimized to tray")
-        self.run_on_startup_checkbox = QCheckBox("Run Syllavox on Windows startup")
+        self.run_on_startup_checkbox = QCheckBox("Run Syllavox at startup")
         self.run_on_startup_checkbox.setToolTip(
-            "Start Syllavox automatically when you sign in to Windows."
+            "Start Syllavox automatically when you sign in to "
+            f"{startup_platform_name()}."
         )
         self.run_on_startup_checkbox.setVisible(is_startup_supported())
         self.remember_window_checkbox = QCheckBox("Remember window size")
@@ -457,7 +463,7 @@ class SettingsPanel(QGroupBox):
         self.apply_hotkey_button = QPushButton("Apply changes")
         self.apply_hotkey_button.setObjectName("accentButton")
         self.hotkey_hint_label = QLabel(
-            "Use Ctrl, Alt, Shift, or Win plus one supported key."
+            hotkey_hint()
         )
         self.hotkey_hint_label.setObjectName("sectionHint")
         self.hotkey_error_label = QLabel()
@@ -717,6 +723,12 @@ class SettingsPanel(QGroupBox):
                 "Windows SAPI uses voices installed in Windows; Syllavox "
                 "does not download or manage their model files. It becomes "
                 "active after restarting Syllavox."
+            )
+        elif selected_backend == MACOS_SYSTEM_TTS_BACKEND:
+            self.backend_hint_label.setText(
+                "macOS system speech uses voices installed in macOS; "
+                "Syllavox does not download or manage their voice files. It "
+                "becomes active after restarting Syllavox."
             )
         else:
             self.backend_hint_label.setText(

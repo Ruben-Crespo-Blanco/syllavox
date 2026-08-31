@@ -7,6 +7,7 @@ from collections.abc import Callable
 
 from .backend import GlobalHotkeyBackend
 from .errors import HotkeyUnsupportedPlatformError
+from .macos_hotkey import MacOSGlobalHotkey
 from .parser import HotkeyBinding
 from .win32_hotkey import Win32GlobalHotkey
 
@@ -49,6 +50,9 @@ def create_global_hotkey_backend(
     """Create the host platform backend without leaking OS selection upward."""
     if sys.platform == "win32":
         return Win32GlobalHotkey(callback=callback)
+
+    if sys.platform == "darwin":
+        return MacOSGlobalHotkey(callback=callback)
 
     return UnsupportedGlobalHotkey(sys.platform)
 

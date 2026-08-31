@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.6.0] - 2026-08-30
+
+Syllavox 0.6.0 adds the first macOS adaptation in the shared codebase while
+preserving the existing Windows Piper, Sherpa-ONNX, SAPI, portable, and
+installer paths.
+
+### Added
+
+- A macOS system-speech provider using the built-in `say` and `afconvert`
+  commands, with readable voice metadata and validated mono 16-bit WAV output.
+- A lazy macOS AppKit global-hotkey adapter with Input Monitoring guidance.
+- macOS per-user startup registration using the bundled app login-item API when
+  available and a LaunchAgent fallback for source checkouts.
+- A macOS PyInstaller `.app` specification, Info.plist, icon conversion, ZIP,
+  DMG, checksum, signing, and optional notarization build script.
+- macOS-aware system-voice labels, backend settings, startup wording, and
+  read-only voice management.
+- Simulated macOS regression coverage that runs on the existing Windows
+  development machine without importing macOS-only modules.
+
+### Validation and release scope
+
+- The Windows-safe automated suite covers the new macOS seams and preserves the
+  existing Windows behavior.
+- A native macOS build and manual smoke test remain required before publishing
+  a macOS artifact. The build must run on macOS or a macOS CI runner because
+  Apple's SDK tools, `say`, `afconvert`, signing, and notarization are not
+  available on Windows.
+- Linux adaptation, reading sessions, and the accessibility-first reading
+  interface remain future work. Reading sessions and the accessibility-first
+  interface stay deferred until after 1.0.0.
+
 ## [0.5.0] - 2026-08-29
 
 Syllavox 0.5.0 adds optional Windows SAPI system-voice support and a per-user

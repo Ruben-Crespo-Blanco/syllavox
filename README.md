@@ -1,19 +1,20 @@
 # Syllavox
 
-Syllavox reads text aloud on your Windows computer using local speech
-synthesis. Text is processed on the computer rather than sent to a cloud TTS
-service.
+Syllavox reads text aloud on your computer using local speech synthesis. Text
+is processed on the computer rather than sent to a cloud TTS service.
 
-This is the v0.5.0 development release. It is a Windows application with an
-installer for ordinary use and a portable ZIP for users who prefer an
-extract-and-run installation. No Python installation is required.
+This is the v0.6.0 development release. Windows has an installer and a
+portable ZIP for ordinary use. The shared macOS adaptation and native build
+path are included in the source, with macOS artifacts to be built and manually
+tested on a Mac. No Python installation is required for published artifacts.
 
 For the concise public-release summary, see the
-[v0.5.0 release notes](docs/release-notes-0.5.0.md).
+[v0.6.0 implementation notes](docs/release-notes-0.6.0.md).
 
 ## Before you start
 
-- Windows is the supported platform for this release.
+- Windows remains the established supported platform for this release's
+  published artifacts; macOS source/build support is being validated on a Mac.
 - The public application does not include voice models. You choose and
   download the voices you want from Piper's official catalog or, in a
   Sherpa-enabled build, from Syllavox's curated Sherpa-ONNX model catalog.
@@ -40,7 +41,7 @@ The portable alternative is `Syllavox-portable.zip`:
    from inside the ZIP file.
 2. Open the extracted `Syllavox` folder and double-click `Syllavox.exe`.
 
-By default Syllavox starts in the Windows notification area (system tray).
+By default Syllavox starts in the host notification area (system tray).
 Use the tray icon to open the main window. To have Syllavox launch whenever
 you sign in to Windows, open **Settings**, enable **Run Syllavox on Windows
 startup**, and select **Save settings**. This registers a per-user Windows
@@ -79,6 +80,11 @@ To use Windows' installed system voices, use a SAPI-enabled build, choose
 restart action. Open **System voices…** to review the voices Windows exposes.
 System voices are read-only in Syllavox: installation, removal, and language
 changes are handled by Windows.
+
+On macOS, choose **macOS system voices** in **Settings**, save the selection,
+and select the displayed restart action. The voice list then shows voices
+installed by macOS. If the global hotkey is unavailable, enable Syllavox under
+**System Settings → Privacy & Security → Input Monitoring**.
 
 Piper voices are downloaded from the official
 [Piper voice catalog](https://huggingface.co/rhasspy/piper-voices). A
@@ -272,7 +278,7 @@ itself.
 
 ## Release scope and limitations
 
-Version 0.5.0 extends the focused Windows MVP with:
+Version 0.6.0 extends the focused desktop MVP with:
 
 - one universal portable Windows distribution, including Chinese support;
 - no bundled voice models;
@@ -298,16 +304,21 @@ Version 0.5.0 extends the focused Windows MVP with:
 - read-only management for Windows-owned system voices, with no model files
   downloaded or deleted by Syllavox;
 - no playback queue; new requests interrupt current playback.
+- a shared macOS adaptation with built-in system speech, AppKit hotkeys,
+  per-user startup registration, and a native `.app` packaging path;
+- platform-specific macOS ZIP/DMG/checksum build tooling, with signing and
+  notarization hooks.
 
 The maximum text length setting defaults to 1,000 characters and can be
 increased to 10,000. The upper bound is a practical safeguard for the current
 single-request speech workflow, not a Piper engine limitation; reading
 sessions and chunked long-form playback remain deferred until after 1.0.0.
 
-macOS and Linux versions and broader language-specific compatibility work
-remain future work. Piper remains the default backend. The base portable build
-stays Piper-only to minimize download size; Sherpa and SAPI-enabled builds are
-explicit variants, while voice models are always downloaded separately.
+The macOS artifact still requires a native Mac build and manual verification;
+Linux remains future work. Piper remains the default backend. The base
+portable build stays Piper-only to minimize download size; Sherpa and
+system-voice builds are explicit variants, while voice models are always
+downloaded separately.
 Reading sessions and a dedicated accessibility-first reading interface remain
 deferred until after 1.0.0.
 The internal import package is `syllavox`, and application data is stored in
@@ -356,7 +367,8 @@ The application uses Piper behind a backend-neutral TTS interface. An
 optional Sherpa-ONNX backend is available behind the `sherpa` dependency and
 the **Sherpa-ONNX** Settings choice. On Windows, an optional system-speech
 provider is available behind the `sapi` dependency and the **Windows SAPI**
-Settings choice. See the
+Settings choice. On macOS, install the `macos` extra to enable the AppKit and
+Service Management adapters and choose **macOS system voices**. See the
 [Sherpa-ONNX guide](docs/sherpa-onnx-experimental.md) for setup, catalogs,
 model bundles, and benchmarking. The [future language model candidates](docs/sherpa-onnx/future-language-model-candidates.md)
 document tracks models that may be integrated later. See the project-level

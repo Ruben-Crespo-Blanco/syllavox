@@ -78,6 +78,21 @@ portable build is explicitly created with `-IncludeSapi`; the ordinary
 Piper-only build excludes it. Windows SAPI voices are installed and licensed
 by Windows and are not Syllavox model files.
 
+## Optional macOS integration
+
+The `macos` optional dependency adds PyObjC framework bindings only on macOS:
+
+| Component | Version requested | License | Upstream source |
+|---|---:|---|---|
+| `pyobjc-framework-Cocoa` | 10.0+ | MIT | [PyObjC](https://github.com/ronaldoussoren/pyobjc) |
+| `pyobjc-framework-ServiceManagement` | 10.0+ | MIT | [PyObjC](https://github.com/ronaldoussoren/pyobjc) |
+
+The initial macOS system-voice provider uses Apple's built-in `/usr/bin/say`
+and `/usr/bin/afconvert` tools. They are part of macOS and are not bundled or
+redistributed by Syllavox. macOS owns the installed system voices and their
+terms. PyObjC is excluded from Windows and Linux installations unless a
+developer explicitly requests the macOS extra on a compatible host.
+
 PySide6 also installs the `PySide6_Essentials`, `PySide6_Addons`, and
 `shiboken6` packages. They carry the same Qt for Python licensing choices and
 are part of the portable-build review.

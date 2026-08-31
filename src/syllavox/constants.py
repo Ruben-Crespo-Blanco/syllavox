@@ -11,7 +11,7 @@ This module is the single source of truth for:
 #
 # Syllavox is both the public product name and the runtime/storage identifier.
 PRODUCT_NAME = "Syllavox"
-PROJECT_VERSION = "0.5.0"
+PROJECT_VERSION = "0.6.0"
 APP_NAME = PRODUCT_NAME
 PACKAGE_NAME = "syllavox"
 
@@ -29,6 +29,7 @@ DEFAULT_READ_HOTKEY = "Ctrl+Alt+R"
 DEFAULT_TTS_BACKEND = "piper"
 SHERPA_ONNX_TTS_BACKEND = "sherpa_onnx"
 WINDOWS_SAPI_TTS_BACKEND = "windows_sapi"
+MACOS_SYSTEM_TTS_BACKEND = "macos_system"
 CURRENT_CONFIG_SCHEMA_VERSION = 1
 
 # API configuration

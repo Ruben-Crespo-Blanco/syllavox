@@ -47,7 +47,7 @@ class MissingRunKeyRegistry(FakeRegistry):
 
 def test_startup_support_is_platform_specific() -> None:
     assert startup.is_startup_supported("win32") is True
-    assert startup.is_startup_supported("darwin") is False
+    assert startup.is_startup_supported("darwin") is True
     assert startup.is_startup_supported("linux") is False
 
 

@@ -25,6 +25,7 @@ from .constants import (
     DEFAULT_READ_HOTKEY,
     DEFAULT_TTS_BACKEND,
     MAX_CONFIGURABLE_TEXT_LENGTH,
+    MACOS_SYSTEM_TTS_BACKEND,
     PRODUCT_NAME,
     SHERPA_ONNX_TTS_BACKEND,
     WINDOWS_SAPI_TTS_BACKEND,
@@ -56,7 +57,11 @@ from .tray.tray_app import TrayApp
 from .tray.theme import apply_app_theme
 from .tray.window import MainWindow
 from .tts.manager import TTSBackendManager
-from .tts.backend_registry import create_backend, normalize_backend_id
+from .tts.backend_registry import (
+    backend_display_name,
+    create_backend,
+    normalize_backend_id,
+)
 from .tts.catalog import (
     PiperVoiceCatalog,
     SherpaVoiceCatalog,
@@ -136,7 +141,7 @@ def _sync_startup_registration(
     try:
         sync_startup_registration(enabled)
     except StartupRegistrationError as exc:
-        logger.warning("Could not reconcile Windows startup registration: %s", exc)
+        logger.warning("Could not reconcile startup registration: %s", exc)
 
 
 def _create_audio_player() -> AudioPlayer:
@@ -176,6 +181,11 @@ def _create_speech_services(
         logger.info(
             "Windows SAPI backend selected from settings; system voices "
             "will be enumerated from Windows."
+        )
+    elif configured_backend == MACOS_SYSTEM_TTS_BACKEND:
+        logger.info(
+            "macOS system speech backend selected from settings; system "
+            "voices will be enumerated from macOS."
         )
 
     configured_max_text_length = int(
@@ -346,9 +356,14 @@ def _create_ui_services(
 ) -> _UiServices:
     """Create the main window, tray integration, and focus IPC endpoint."""
     backend_name = speech_services.backend_manager.backend_name()
-    if backend_name == WINDOWS_SAPI_TTS_BACKEND:
-        voice_catalog = SystemVoiceCatalog()
-    elif backend_name == "sherpa-onnx":
+    if backend_name in {
+        WINDOWS_SAPI_TTS_BACKEND,
+        MACOS_SYSTEM_TTS_BACKEND,
+    }:
+        voice_catalog = SystemVoiceCatalog(
+            system_voice_name=backend_display_name(backend_name)
+        )
+    elif backend_name == SHERPA_ONNX_TTS_BACKEND:
         voice_catalog = SherpaVoiceCatalog(
             backend=speech_services.backend_manager.active_backend,
             models_dir=get_sherpa_onnx_models_dir(),

@@ -1,17 +1,25 @@
-"""PyInstaller specification for the portable Windows application."""
+"""PyInstaller specification for the Syllavox desktop applications."""
 
 from pathlib import Path
 import os
+import plistlib
+import sys
+import tomllib
 
 from PyInstaller.utils.hooks import (
     collect_data_files,
     collect_dynamic_libs,
     collect_submodules,
 )
+from PyInstaller.building.osx import BUNDLE
 
 
 PROJECT_ROOT = Path(SPECPATH).parent
 APPLICATION_NAME = "Syllavox"
+IS_MACOS = sys.platform == "darwin"
+PROJECT_VERSION = tomllib.loads(
+    (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+)["project"]["version"]
 
 piper_datas = collect_data_files("piper")
 piper_binaries = collect_dynamic_libs("piper")
@@ -219,12 +227,33 @@ executable = EXE(
     console=False,
 )
 
-COLLECT(
-    executable,
-    analysis.binaries,
-    analysis.datas,
-    strip=False,
-    upx=False,
-    upx_exclude=[],
-    name=APPLICATION_NAME,
-)
+if IS_MACOS:
+    macos_info_plist = {}
+    info_plist_path = os.environ.get("SYLLAVOX_MACOS_INFO_PLIST")
+    if info_plist_path:
+        with open(info_plist_path, "rb") as info_plist_file:
+            macos_info_plist = plistlib.load(info_plist_file)
+
+    macos_icon_path = os.environ.get("SYLLAVOX_MACOS_ICON")
+    app = BUNDLE(
+        executable,
+        analysis.binaries,
+        analysis.datas,
+        strip=False,
+        upx=False,
+        name=f"{APPLICATION_NAME}.app",
+        version=PROJECT_VERSION,
+        icon=(macos_icon_path if macos_icon_path else None),
+        bundle_identifier="com.ruben-crespo-blanco.syllavox",
+        info_plist=macos_info_plist,
+    )
+else:
+    COLLECT(
+        executable,
+        analysis.binaries,
+        analysis.datas,
+        strip=False,
+        upx=False,
+        upx_exclude=[],
+        name=APPLICATION_NAME,
+    )
