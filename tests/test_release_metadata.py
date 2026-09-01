@@ -5,7 +5,11 @@ from __future__ import annotations
 import json
 from pathlib import Path
 import re
-import tomllib
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - exercised on Python 3.10
+    import tomli as tomllib
 
 from syllavox.constants import APP_NAME, PACKAGE_NAME, PROJECT_VERSION
 
@@ -51,6 +55,10 @@ def test_development_dependencies_declare_the_test_runner() -> None:
     assert any(
         requirement.startswith("pytest")
         for requirement in development_requirements
+    )
+    assert (
+        "tomli>=2.0; python_version < '3.11'"
+        in development_requirements
     )
 
 

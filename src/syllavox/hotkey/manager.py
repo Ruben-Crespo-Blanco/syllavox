@@ -13,10 +13,10 @@ isolated in the platform backend modules.
 from __future__ import annotations
 
 from collections.abc import Callable
-from enum import StrEnum
 from logging import Logger
 from dataclasses import dataclass
 
+from syllavox.compat import StrEnum
 from syllavox.hotkey.backend import GlobalHotkeyBackend
 from syllavox.hotkey.errors import HotkeyActionError, HotkeyRegistrationError, HotkeyUnsupportedPlatformError
 from syllavox.hotkey.factory import create_global_hotkey_backend

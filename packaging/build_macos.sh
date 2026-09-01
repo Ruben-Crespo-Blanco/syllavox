@@ -67,7 +67,7 @@ fi
 PYTHON="${PYTHON:-${PROJECT_ROOT}/.venv/bin/python}"
 [[ -x "${PYTHON}" ]] || die "Python executable not found: ${PYTHON}"
 
-VERSION="$("${PYTHON}" -c 'import pathlib, sys, tomllib; print(tomllib.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))["project"]["version"])' \
+VERSION="$("${PYTHON}" -c 'import pathlib, sys; toml = __import__("tomllib") if sys.version_info >= (3, 11) else __import__("tomli"); print(toml.loads(pathlib.Path(sys.argv[1]).read_text(encoding="utf-8"))["project"]["version"])' \
     "${PROJECT_ROOT}/pyproject.toml")"
 ARCH="$(uname -m)"
 ARTIFACT_STEM="Syllavox-${VERSION}-macos-${ARCH}"

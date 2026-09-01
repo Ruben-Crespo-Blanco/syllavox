@@ -202,6 +202,10 @@ def test_g2pw_text_files_are_opened_as_utf8(
     resource_path = resource_dir / "POLYPHONIC_CHARS.txt"
     resource_path.write_bytes("中\tzhōng\n".encode("utf-8"))
 
+    # Piper 1.7 uses its ONNX g2pW path for inference and intentionally does
+    # not install PyTorch. This test covers the legacy g2pw compatibility
+    # bridge only when that optional implementation is available.
+    pytest.importorskip("torch")
     import g2pw.api as g2pw_api
 
     captured: dict[str, object] = {}

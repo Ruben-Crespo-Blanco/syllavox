@@ -4,7 +4,11 @@ from pathlib import Path
 import os
 import plistlib
 import sys
-import tomllib
+
+try:
+    import tomllib
+except ModuleNotFoundError:  # pragma: no cover - Python 3.10 packaging
+    import tomli as tomllib
 
 from PyInstaller.utils.hooks import (
     collect_data_files,

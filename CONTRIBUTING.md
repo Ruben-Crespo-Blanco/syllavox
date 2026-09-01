@@ -64,10 +64,12 @@ bash packaging/build_macos.sh --skip-dmg
 ```
 
 The supported Qt 6.5-compatible macOS baseline is macOS 11. Use Python 3.11
-for the broadest compatible development environment. The shared project
-metadata pins macOS to Piper 1.7.0 and ONNX Runtime 1.19.2; this avoids the
-legacy `piper-phonemize` dependency path and newer ONNX Runtime wheels that
-may not support the Mac's OS or architecture.
+for the broadest compatible development environment; Python 3.10 is also
+supported, with `tomli` supplied by the development and packaging extras for
+the missing standard-library TOML module. The shared project metadata pins
+macOS to Piper 1.7.0 and ONNX Runtime 1.19.2; this avoids the legacy
+`piper-phonemize` dependency path and newer ONNX Runtime wheels that may not
+support the Mac's OS or architecture.
 
 Add `--include-sherpa` when building the optional Sherpa-ONNX variant. The
 macOS script writes app, archive, and checksum artifacts under `build/macos/`;
