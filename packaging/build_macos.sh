@@ -99,7 +99,7 @@ if [[ "${SKIP_PYINSTALLER}" -eq 0 ]]; then
     export SYLLAVOX_INCLUDE_SAPI=0
     export SYLLAVOX_MACOS_INFO_PLIST="${PROJECT_ROOT}/packaging/macos/Info.plist"
     export SYLLAVOX_MACOS_ICON="${ICON_PATH}"
-    export MACOSX_DEPLOYMENT_TARGET="13.0"
+    export MACOSX_DEPLOYMENT_TARGET="11.0"
 
     "${PYTHON}" -m PyInstaller \
         --noconfirm \

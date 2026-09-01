@@ -63,6 +63,10 @@ pytest
 bash packaging/build_macos.sh --skip-dmg
 ```
 
+The supported Qt 6.5-compatible macOS baseline is macOS 11. If your Mac's
+package index only offers PySide6 6.5.2, use Python 3.11 because that PySide6
+release does not support Python 3.12 and newer.
+
 Add `--include-sherpa` when building the optional Sherpa-ONNX variant. The
 macOS script writes app, archive, and checksum artifacts under `build/macos/`;
 do not commit generated output.

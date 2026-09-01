@@ -78,7 +78,10 @@ def test_macos_packaging_metadata_and_build_script_are_present() -> None:
 
     assert "com.ruben-crespo-blanco.syllavox" in info_plist
     assert "LSMinimumSystemVersion" in info_plist
+    assert ">11.0<" in info_plist
+    assert 'PySide6>=6.5.2,<6.12' in project["project"]["dependencies"]
     assert '[[ "$(uname -s)" == "Darwin" ]]' in macos_build_script
+    assert 'MACOSX_DEPLOYMENT_TARGET="11.0"' in macos_build_script
     assert "hdiutil create" in macos_build_script
     assert "notarytool submit" in macos_build_script
 

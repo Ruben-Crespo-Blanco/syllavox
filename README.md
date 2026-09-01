@@ -360,6 +360,17 @@ python -m pip install -e ".[dev,packaging,sapi]"
 .\packaging\build_portable.ps1 -IncludeSapi
 ```
 
+On macOS 11 or later, create the development environment with Python 3.11
+when the system's package index only offers PySide6 6.5.2:
+
+```bash
+python3.11 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev,packaging,macos]"
+pytest
+bash packaging/build_macos.sh --skip-dmg
+```
+
 The local API listens on `http://127.0.0.1:8765` and provides `/v1/status`,
 `/v1/speak`, `/v1/stop`, `/v1/pause`, `/v1/resume`, and `/v1/voices`.
 

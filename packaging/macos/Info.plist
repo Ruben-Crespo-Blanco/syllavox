@@ -9,7 +9,7 @@
 	<key>CFBundleIdentifier</key>
 	<string>com.ruben-crespo-blanco.syllavox</string>
 	<key>LSMinimumSystemVersion</key>
-	<string>13.0</string>
+	<string>11.0</string>
 	<key>NSHighResolutionCapable</key>
 	<true/>
 	<key>NSHumanReadableCopyright</key>

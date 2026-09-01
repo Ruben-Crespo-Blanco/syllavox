@@ -536,7 +536,8 @@ native macOS behavior.
 ### Packaging and distribution
 
 - Add a macOS Info.plist with the application identifier and minimum supported
-  macOS version, and generate an `.icns` file from the existing Syllavox icon.
+  macOS 11 version, and generate an `.icns` file from the existing Syllavox
+  icon.
 - Extend the PyInstaller specification with a macOS `.app` bundle while
   leaving the Windows `COLLECT` path unchanged.
 - Add a native-only `packaging/build_macos.sh` that creates an architecture-
@@ -549,6 +550,8 @@ native macOS behavior.
 
 - Keep PyObjC optional and macOS-conditional so Windows and Linux users do not
   acquire AppKit or Service Management dependencies.
+- Support the Qt 6.5-compatible macOS 11 baseline. Use `SMAppService` on
+  macOS 13+ and the LaunchAgent fallback on macOS 11–12.
 - Use the built-in speech tools for the initial system-voice path to avoid
   adding a second speech runtime or model collection to the base app.
 - Keep Sherpa-ONNX optional and keep model downloads outside the application

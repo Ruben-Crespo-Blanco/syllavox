@@ -39,7 +39,7 @@ main components they bring into the application.
 | Component | Version observed | License | Upstream source |
 |---|---:|---|---|
 | `piper-tts` | 1.6.0 | GPL-3.0-or-later | [OHF-Voice/piper1-gpl](https://github.com/OHF-Voice/piper1-gpl) |
-| `PySide6` / Qt for Python | 6.11.1 | LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only | [Qt for Python licensing](https://doc.qt.io/qtforpython-6/licenses.html) |
+| `PySide6` / Qt for Python | 6.5.2–6.11.x | LGPL-3.0-only OR GPL-2.0-only OR GPL-3.0-only | [Qt for Python licensing](https://doc.qt.io/qtforpython-6/licenses.html) |
 | `fastapi` | 0.141.1 | MIT | [FastAPI](https://github.com/fastapi/fastapi) |
 | `uvicorn` | 0.52.1 | BSD-3-Clause | [Uvicorn](https://github.com/Kludex/uvicorn) |
 | `pydantic` | 2.13.4 | MIT | [Pydantic](https://github.com/pydantic/pydantic) |

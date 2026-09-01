@@ -41,6 +41,12 @@ The script creates architecture-specific files under `build/macos/`. Build
 arm64 and x86_64 separately on their native runners, or add a deliberate
 universal-build step after both native builds have passed manual testing.
 
+The supported Qt 6.5-compatible macOS baseline is macOS 11. On macOS 13 and
+newer, startup registration can use Apple's `SMAppService`; on macOS 11–12,
+Syllavox uses the per-user LaunchAgent fallback. If `pip` only offers PySide6
+6.5.2 on the Mac, use Python 3.11 or another Python version supported by that
+PySide6 release.
+
 ## macOS permissions and limitations
 
 macOS may require enabling Syllavox under **System Settings → Privacy &
