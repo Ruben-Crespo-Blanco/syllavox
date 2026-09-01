@@ -15,17 +15,22 @@ installer paths.
   available and a LaunchAgent fallback for source checkouts.
 - A macOS PyInstaller `.app` specification, Info.plist, icon conversion, ZIP,
   DMG, checksum, signing, and optional notarization build script.
+- Python 3.10 compatibility for the hotkey enum and TOML-based test and
+  packaging tooling through the `tomli` backport.
 - macOS-aware system-voice labels, backend settings, startup wording, and
   read-only voice management.
 - Simulated macOS regression coverage that runs on the existing Windows
   development machine without importing macOS-only modules.
+- macOS dependency resolution that pins Piper 1.7.0 and ONNX Runtime 1.19.2,
+  avoiding the incompatible legacy `piper-phonemize` path.
 
 ### Validation and release scope
 
 - The Windows-safe automated suite covers the new macOS seams and preserves the
   existing Windows behavior.
-- A native macOS build and manual smoke test remain required before publishing
-  a macOS artifact. The build must run on macOS or a macOS CI runner because
+- The native macOS build path has been validated. A manual smoke test remains
+  required before publishing a macOS artifact. The build must run on macOS or a
+  macOS CI runner because
   Apple's SDK tools, `say`, `afconvert`, signing, and notarization are not
   available on Windows.
 - Linux adaptation, reading sessions, and the accessibility-first reading

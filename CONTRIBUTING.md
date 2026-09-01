@@ -10,6 +10,9 @@ configurable clipboard hotkeys, polished Qt windows, and a local API.
 Contributions should preserve
 that local-first behavior unless a change is explicitly discussed first.
 
+For project contact, support, or contribution coordination, email
+`rcresb@gmail.com`.
+
 ## Before you start
 
 For a bug, voice problem, or feature idea, please check the existing issues and
@@ -53,23 +56,28 @@ pytest
 
 The macOS adaptation must be developed and packaged on macOS (or a macOS CI
 runner), because the native SDK tools and system speech commands are not
-available on Windows. On macOS, use:
+available on Windows. On macOS, use Python 3.10 or 3.11. Python 3.10 is
+supported for environments where it is the compatible interpreter for the
+dependency set:
 
 ```bash
-python3 -m venv .venv
+python3.10 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev,packaging,macos]"
 pytest
 bash packaging/build_macos.sh --skip-dmg
 ```
 
-The supported Qt 6.5-compatible macOS baseline is macOS 11. Use Python 3.11
-for the broadest compatible development environment; Python 3.10 is also
-supported, with `tomli` supplied by the development and packaging extras for
-the missing standard-library TOML module. The shared project metadata pins
-macOS to Piper 1.7.0 and ONNX Runtime 1.19.2; this avoids the legacy
+The supported Qt 6.5-compatible macOS baseline is macOS 11. On Python 3.10,
+the development and packaging extras provide `tomli`, the backport for the
+standard-library `tomllib` module added in Python 3.11. There is no separate
+`tomllib` distribution to install. The shared project metadata pins macOS to
+Piper 1.7.0 and ONNX Runtime 1.19.2; this avoids the legacy
 `piper-phonemize` dependency path and newer ONNX Runtime wheels that may not
 support the Mac's OS or architecture.
+
+Python 3.11 can be used by replacing `python3.10` in the commands above with
+`python3.11`.
 
 Add `--include-sherpa` when building the optional Sherpa-ONNX variant. The
 macOS script writes app, archive, and checksum artifacts under `build/macos/`;

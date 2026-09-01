@@ -3,8 +3,9 @@
 This roadmap maps planned development to proposed versions. The version
 assignments are planning targets, not commitments. The current development
 milestone is v0.6.0, which adds the shared macOS adaptation and native macOS
-packaging path. A native Mac build and manual validation are still required
-before a macOS artifact is published.
+packaging path. The native Mac build path has been validated; final artifact
+publication still requires the documented manual smoke test and release
+checks.
 
 ## Version plan
 
@@ -573,9 +574,10 @@ native macOS behavior.
 ### Current implementation status
 
 The shared macOS adapters, system-speech provider, UI integration, PyInstaller
-bundle branch, Info.plist, native build script, and simulated regression tests
-are implemented. The remaining v0.6 gate is native macOS build and manual
-verification; that work cannot be completed on the current Windows machine.
+bundle branch, Info.plist, native build script, Python 3.10 compatibility
+shims, and simulated regression tests are implemented. The native macOS build
+path has been validated. The remaining v0.6 gate is manual application
+verification on the target Mac architectures before publishing artifacts.
 
 ## Sherpa-ONNX and rust-tts-wrapper evaluation
 

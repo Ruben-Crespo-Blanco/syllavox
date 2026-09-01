@@ -5,8 +5,8 @@ is processed on the computer rather than sent to a cloud TTS service.
 
 This is the v0.6.0 development release. Windows has an installer and a
 portable ZIP for ordinary use. The shared macOS adaptation and native build
-path are included in the source, with macOS artifacts to be built and manually
-tested on a Mac. No Python installation is required for published artifacts.
+path are included in the source, and the macOS build path has been validated
+on a Mac. No Python installation is required for published artifacts.
 
 For the concise public-release summary, see the
 [v0.6.0 implementation notes](docs/release-notes-0.6.0.md).
@@ -330,6 +330,9 @@ Please read the [public feedback guide](PUBLIC_FEEDBACK.md) before reporting a
 problem. It explains what to test and which details are useful while avoiding
 the submission of private text or voice files.
 
+For Syllavox questions, support, or project contact, email
+`rcresb@gmail.com`.
+
 - [Report a bug](.github/ISSUE_TEMPLATE/bug_report.md)
 - [Report a voice compatibility problem](.github/ISSUE_TEMPLATE/voice_compatibility.md)
 - [Suggest an improvement](.github/ISSUE_TEMPLATE/feature_request.md)
@@ -360,20 +363,27 @@ python -m pip install -e ".[dev,packaging,sapi]"
 .\packaging\build_portable.ps1 -IncludeSapi
 ```
 
-On macOS 11 or later, Python 3.11 is recommended. Python 3.10 is also
-supported; the development and packaging extras install the `tomli` TOML
-backport needed by Python 3.10. The macOS dependency set pins Piper to 1.7.0
-and ONNX Runtime to 1.19.2 so pip does not select the incompatible legacy
-`piper-phonemize` path or a newer ONNX Runtime without the required
-macOS/architecture wheel:
+On macOS 11 or later, Python 3.10 and 3.11 are supported. Python 3.10 is a
+useful choice when other installed packages require it; the development and
+packaging extras install the `tomli` TOML backport needed by Python 3.10.
+Do not try to install a package named `tomllib`: `tomllib` is built into
+Python 3.11+, while `tomli` supplies the compatible backport for Python 3.10.
+The macOS dependency set pins Piper to 1.7.0 and ONNX Runtime to 1.19.2 so
+pip does not select the incompatible legacy `piper-phonemize` path or a newer
+ONNX Runtime without the required macOS/architecture wheel.
 
 ```bash
-python3.11 -m venv .venv
+python3.10 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev,packaging,macos]"
 pytest
 bash packaging/build_macos.sh --skip-dmg
 ```
+
+If Python 3.11 is installed and preferred, replace `python3.10` with
+`python3.11`. The build script creates the native `.app`, ZIP, and checksum
+under `build/macos/`; use `--include-sherpa` for an optional Sherpa-enabled
+variant.
 
 The local API listens on `http://127.0.0.1:8765` and provides `/v1/status`,
 `/v1/speak`, `/v1/stop`, `/v1/pause`, `/v1/resume`, and `/v1/voices`.

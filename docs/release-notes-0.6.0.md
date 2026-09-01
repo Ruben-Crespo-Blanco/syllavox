@@ -2,8 +2,8 @@
 
 Syllavox v0.6.0 adapts the existing application for macOS without creating a
 second codebase. Windows remains the established supported distribution path;
-this milestone adds the macOS runtime and packaging path so it can be built
-and tested on a Mac next.
+this milestone adds the macOS runtime and packaging path, which has now been
+validated through a native Mac build.
 
 ## Included
 
@@ -20,32 +20,44 @@ and tested on a Mac next.
   and optional notarization output;
 - regression tests for all of the above using platform seams and fakes, so the
   Windows development environment can verify the integration structure.
+- Python 3.10 compatibility for the hotkey enum and TOML-based packaging and
+  test tooling, using the `tomli` backport instead of a nonexistent `tomllib`
+  PyPI package;
+- macOS dependency constraints that select Piper 1.7.0 and ONNX Runtime 1.19.2
+  without resolving the incompatible legacy `piper-phonemize` path.
 
 ## Build on macOS
 
 From the repository root on a Mac:
 
 ```bash
-python3 -m venv .venv
+python3.10 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev,packaging,macos]"
 bash packaging/build_macos.sh --skip-dmg
 ```
+
+Python 3.11 is also supported; replace `python3.10` with `python3.11` when
+using it. Python 3.10 users should install the development or packaging extra
+so that `tomli` is available. `tomllib` itself should not be installed with
+pip because it is a Python 3.11 standard-library module, not a PyPI package.
 
 Use `--include-sherpa` for a Sherpa-enabled app. Set `SIGN_IDENTITY` to sign
 the app. For release distribution, set `NOTARY_PROFILE` to an already
 configured `notarytool` keychain profile; the script submits and staples the
 DMG, then regenerates its checksum.
 
-The script creates architecture-specific files under `build/macos/`. Build
+The script creates architecture-specific files under `build/macos/`. The
+native macOS build path has now been validated. Build
 arm64 and x86_64 separately on their native runners, or add a deliberate
 universal-build step after both native builds have passed manual testing.
 
 The supported Qt 6.5-compatible macOS baseline is macOS 11. On macOS 13 and
 newer, startup registration can use Apple's `SMAppService`; on macOS 11–12,
 Syllavox uses the per-user LaunchAgent fallback. If `pip` only offers PySide6
-6.5.2 on the Mac, use Python 3.11 or another Python version supported by that
-PySide6 release.
+6.5.2 on the Mac, that version is supported by Syllavox; use Python 3.10 or
+3.11 and install the project extras so the platform-specific constraints are
+applied.
 
 ## macOS permissions and limitations
 
