@@ -63,9 +63,11 @@ pytest
 bash packaging/build_macos.sh --skip-dmg
 ```
 
-The supported Qt 6.5-compatible macOS baseline is macOS 11. If your Mac's
-package index only offers PySide6 6.5.2, use Python 3.11 because that PySide6
-release does not support Python 3.12 and newer.
+The supported Qt 6.5-compatible macOS baseline is macOS 11. Use Python 3.11
+for the broadest compatible development environment. The shared project
+metadata pins macOS to Piper 1.7.0 and ONNX Runtime 1.19.2; this avoids the
+legacy `piper-phonemize` dependency path and newer ONNX Runtime wheels that
+may not support the Mac's OS or architecture.
 
 Add `--include-sherpa` when building the optional Sherpa-ONNX variant. The
 macOS script writes app, archive, and checksum artifacts under `build/macos/`;

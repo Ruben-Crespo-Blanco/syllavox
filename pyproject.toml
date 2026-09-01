@@ -29,7 +29,9 @@ dependencies = [
     "fastapi",
     "uvicorn",
     "pydantic",
-    "piper-tts[zh]",
+    "piper-tts[zh]; sys_platform != 'darwin'",
+    "piper-tts[zh]==1.7.0; sys_platform == 'darwin'",
+    "onnxruntime==1.19.2; sys_platform == 'darwin'",
 ]
 
 [project.urls]

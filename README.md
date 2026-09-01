@@ -360,8 +360,10 @@ python -m pip install -e ".[dev,packaging,sapi]"
 .\packaging\build_portable.ps1 -IncludeSapi
 ```
 
-On macOS 11 or later, create the development environment with Python 3.11
-when the system's package index only offers PySide6 6.5.2:
+On macOS 11 or later, create the development environment with Python 3.11.
+The macOS dependency set pins Piper to 1.7.0 and ONNX Runtime to 1.19.2 so
+pip does not select the incompatible legacy `piper-phonemize` path or a newer
+ONNX Runtime without the required macOS/architecture wheel:
 
 ```bash
 python3.11 -m venv .venv

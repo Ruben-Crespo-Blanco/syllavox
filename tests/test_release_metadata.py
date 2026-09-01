@@ -80,6 +80,18 @@ def test_macos_packaging_metadata_and_build_script_are_present() -> None:
     assert "LSMinimumSystemVersion" in info_plist
     assert ">11.0<" in info_plist
     assert 'PySide6>=6.5.2,<6.12' in project["project"]["dependencies"]
+    assert (
+        "piper-tts[zh]==1.7.0; sys_platform == 'darwin'"
+        in project["project"]["dependencies"]
+    )
+    assert (
+        "onnxruntime==1.19.2; sys_platform == 'darwin'"
+        in project["project"]["dependencies"]
+    )
+    assert (
+        "piper-tts[zh]; sys_platform != 'darwin'"
+        in project["project"]["dependencies"]
+    )
     assert '[[ "$(uname -s)" == "Darwin" ]]' in macos_build_script
     assert 'MACOSX_DEPLOYMENT_TARGET="11.0"' in macos_build_script
     assert "hdiutil create" in macos_build_script
