@@ -147,8 +147,9 @@ def test_catalog_reports_size_and_deletes_voice_pair(tmp_path: Path) -> None:
 def test_catalog_rejects_voice_path_traversal(tmp_path: Path) -> None:
     catalog = PiperVoiceCatalog(tmp_path)
 
-    with pytest.raises(VoiceCatalogError):
-        catalog.delete_voice_files("..\\outside")
+    for voice_id in ("../outside", "..\\outside"):
+        with pytest.raises(VoiceCatalogError):
+            catalog.delete_voice_files(voice_id)
 
 
 def test_catalog_removes_unused_g2pw_only_after_last_pinyin_voice(

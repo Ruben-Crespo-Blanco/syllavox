@@ -3,7 +3,8 @@
 The application and UI use this module as a platform-neutral boundary. The
 Windows Registry implementation remains here for compatibility with v0.5,
 while macOS registration is delegated to a lazily imported LaunchAgent/
-Service Management adapter.
+Service Management adapter and Linux registration is delegated to a lazily
+imported freedesktop XDG autostart adapter.
 """
 
 from __future__ import annotations
@@ -26,7 +27,7 @@ class StartupRegistrationError(RuntimeError):
 
 def is_startup_supported(platform_name: str | None = None) -> bool:
     """Return whether this host supports Syllavox's startup integration."""
-    return (platform_name or sys.platform) in {"win32", "darwin"}
+    return (platform_name or sys.platform) in {"win32", "darwin", "linux"}
 
 
 def startup_platform_name(platform_name: str | None = None) -> str:
@@ -35,6 +36,7 @@ def startup_platform_name(platform_name: str | None = None) -> str:
     return {
         "win32": "Windows",
         "darwin": "macOS",
+        "linux": "Linux",
     }.get(current_platform, "this platform")
 
 
@@ -85,6 +87,12 @@ def set_startup_enabled(
         from .macos_startup import set_macos_startup_enabled
 
         set_macos_startup_enabled(enabled, platform_name=current_platform)
+        return
+
+    if current_platform == "linux":
+        from .linux_startup import set_linux_startup_enabled
+
+        set_linux_startup_enabled(enabled, platform_name=current_platform)
         return
 
     if current_platform != "win32":

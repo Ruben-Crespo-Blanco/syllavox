@@ -48,7 +48,8 @@ class MissingRunKeyRegistry(FakeRegistry):
 def test_startup_support_is_platform_specific() -> None:
     assert startup.is_startup_supported("win32") is True
     assert startup.is_startup_supported("darwin") is True
-    assert startup.is_startup_supported("linux") is False
+    assert startup.is_startup_supported("linux") is True
+    assert startup.is_startup_supported("freebsd") is False
 
 
 def test_build_startup_command_quotes_executable_and_arguments() -> None:
@@ -83,12 +84,34 @@ def test_enable_and_disable_startup_registration(
 def test_startup_setting_is_noop_when_disabled_on_unsupported_platform(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    monkeypatch.setattr(startup.sys, "platform", "linux")
+    monkeypatch.setattr(startup.sys, "platform", "freebsd")
 
     startup.set_startup_enabled(False)
 
     with pytest.raises(startup.StartupRegistrationError):
         startup.set_startup_enabled(True)
+
+
+def test_linux_startup_setting_delegates_to_xdg_adapter(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    calls: list[tuple[bool, str]] = []
+
+    def fake_linux_startup(enabled: bool, *, platform_name: str) -> None:
+        calls.append((enabled, platform_name))
+
+    import syllavox.linux_startup as linux_startup
+
+    monkeypatch.setattr(startup.sys, "platform", "linux")
+    monkeypatch.setattr(
+        linux_startup,
+        "set_linux_startup_enabled",
+        fake_linux_startup,
+    )
+
+    startup.set_startup_enabled(True)
+
+    assert calls == [(True, "linux")]
 
 
 def test_disabling_startup_does_not_create_a_missing_run_key() -> None:

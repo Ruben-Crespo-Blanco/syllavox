@@ -312,9 +312,9 @@ def test_window_clear_local_data_removes_app_data_and_skips_close_save(
     qt_app: QApplication,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    local_appdata = tmp_path / "local-appdata"
-    app_data_dir = local_appdata / "Syllavox"
-    monkeypatch.setenv("LOCALAPPDATA", str(local_appdata))
+    data_root = tmp_path / "local-data"
+    app_data_dir = data_root / "Syllavox"
+    monkeypatch.setenv("SYLLAVOX_DATA_DIR", str(data_root))
     monkeypatch.setattr(
         window_module.QMessageBox,
         "question",

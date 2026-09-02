@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>com.ruben-crespo-blanco.syllavox</id>
+  <name>Syllavox</name>
+  <summary>Local offline text-to-speech reader</summary>
+  <description>
+    <p>Syllavox reads text aloud locally using installed offline speech engines.</p>
+  </description>
+  <launchable type="desktop-id">com.ruben-crespo-blanco.syllavox.desktop</launchable>
+  <provides>
+    <binary>Syllavox</binary>
+  </provides>
+  <categories>
+    <category>Utility</category>
+    <category>Accessibility</category>
+  </categories>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+</component>

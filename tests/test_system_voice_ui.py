@@ -8,7 +8,11 @@ from PySide6.QtWidgets import QApplication
 
 import syllavox.tts.backend_registry as registry
 import syllavox.startup as startup
-from syllavox.constants import MACOS_SYSTEM_TTS_BACKEND, WINDOWS_SAPI_TTS_BACKEND
+from syllavox.constants import (
+    LINUX_ESPEAK_TTS_BACKEND,
+    MACOS_SYSTEM_TTS_BACKEND,
+    WINDOWS_SAPI_TTS_BACKEND,
+)
 from syllavox.tray.voice_management_view import VoiceManagementView
 from syllavox.tray.window_widgets import SettingsPanel, VoiceSelectorWidget
 from syllavox.tts.base import VoiceInfo
@@ -45,6 +49,21 @@ def test_settings_panel_exposes_macos_system_speech(monkeypatch) -> None:
     )
     assert panel.run_on_startup_checkbox.isHidden() is False
     assert "installed in macOS" in panel.backend_hint_label.text()
+
+
+def test_settings_panel_exposes_linux_espeak_system_speech(monkeypatch) -> None:
+    monkeypatch.setattr(registry.sys, "platform", "linux")
+    monkeypatch.setattr(registry.shutil, "which", lambda name: "/usr/bin/espeak-ng")
+
+    panel = SettingsPanel(active_backend="piper")
+    index = panel.backend_combo.findData(LINUX_ESPEAK_TTS_BACKEND)
+    panel.backend_combo.setCurrentIndex(index)
+
+    assert index >= 0
+    assert panel.backend_restart_button.text() == (
+        "Restart to use Linux system voices (eSpeak NG)"
+    )
+    assert "installed eSpeak NG package" in panel.backend_hint_label.text()
 
 
 def test_system_voice_selector_hides_download_action() -> None:

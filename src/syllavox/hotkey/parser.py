@@ -208,6 +208,12 @@ def hotkey_hint(platform_name: str | None = None) -> str:
             "supported key."
         )
 
+    if current_platform.startswith("linux"):
+        return (
+            "Use Ctrl, Alt, Shift, or Win (Super) plus one supported key. "
+            "Wayland may ask the desktop to approve the shortcut."
+        )
+
     return "Use Ctrl, Alt, Shift, or Win plus one supported key."
 
 

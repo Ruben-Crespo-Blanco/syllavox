@@ -24,6 +24,7 @@ from .constants import (
     DEFAULT_MAX_TEXT_LENGTH,
     DEFAULT_READ_HOTKEY,
     DEFAULT_TTS_BACKEND,
+    LINUX_ESPEAK_TTS_BACKEND,
     MAX_CONFIGURABLE_TEXT_LENGTH,
     MACOS_SYSTEM_TTS_BACKEND,
     PRODUCT_NAME,
@@ -186,6 +187,11 @@ def _create_speech_services(
         logger.info(
             "macOS system speech backend selected from settings; system "
             "voices will be enumerated from macOS."
+        )
+    elif configured_backend == LINUX_ESPEAK_TTS_BACKEND:
+        logger.info(
+            "Linux eSpeak NG backend selected from settings; system voices "
+            "will be enumerated from the host installation."
         )
 
     configured_max_text_length = int(
@@ -359,6 +365,7 @@ def _create_ui_services(
     if backend_name in {
         WINDOWS_SAPI_TTS_BACKEND,
         MACOS_SYSTEM_TTS_BACKEND,
+        LINUX_ESPEAK_TTS_BACKEND,
     }:
         voice_catalog = SystemVoiceCatalog(
             system_voice_name=backend_display_name(backend_name)

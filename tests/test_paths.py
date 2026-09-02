@@ -13,13 +13,18 @@ from syllavox.paths import (
 from syllavox.tts.paths import get_sherpa_onnx_models_dir
 
 
-def test_get_local_appdata_dir_uses_localappdata(monkeypatch, tmp_path: Path) -> None:
+def test_get_local_appdata_dir_uses_localappdata(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setattr(platform_paths.sys, "platform", "win32")
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
 
     assert get_local_appdata_dir() == tmp_path
 
 
 def test_get_local_appdata_dir_falls_back_to_home(monkeypatch) -> None:
+    monkeypatch.setattr(platform_paths.sys, "platform", "win32")
     monkeypatch.delenv("LOCALAPPDATA", raising=False)
 
     assert get_local_appdata_dir() == Path.home() / "AppData" / "Local"
@@ -62,6 +67,7 @@ def test_platform_data_root_honors_explicit_override(tmp_path: Path) -> None:
 
 
 def test_app_base_dir_is_under_localappdata(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(platform_paths.sys, "platform", "win32")
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
 
     expected = tmp_path / APP_NAME
@@ -70,6 +76,7 @@ def test_app_base_dir_is_under_localappdata(monkeypatch, tmp_path: Path) -> None
 
 
 def test_settings_file_path(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(platform_paths.sys, "platform", "win32")
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
 
     expected = tmp_path / APP_NAME / SETTINGS_FILE_NAME
@@ -78,6 +85,7 @@ def test_settings_file_path(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_logs_dir(monkeypatch, tmp_path: Path) -> None:
+    monkeypatch.setattr(platform_paths.sys, "platform", "win32")
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
 
     expected = tmp_path / APP_NAME / LOGS_DIR_NAME
@@ -89,6 +97,7 @@ def test_sherpa_models_dir_is_backend_specific(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
+    monkeypatch.setattr(platform_paths.sys, "platform", "win32")
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
 
     assert get_sherpa_onnx_models_dir() == (
@@ -100,6 +109,7 @@ def test_ensure_app_directories_creates_base_and_logs(
     monkeypatch,
     tmp_path: Path,
 ) -> None:
+    monkeypatch.setattr(platform_paths.sys, "platform", "win32")
     monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
 
     ensure_app_directories()

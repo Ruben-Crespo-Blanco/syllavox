@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import importlib.util
+import shutil
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
 
 from syllavox.constants import (
     DEFAULT_TTS_BACKEND,
+    LINUX_ESPEAK_TTS_BACKEND,
     MACOS_SYSTEM_TTS_BACKEND,
     SHERPA_ONNX_TTS_BACKEND,
     WINDOWS_SAPI_TTS_BACKEND,
@@ -39,6 +41,11 @@ _BACKEND_DESCRIPTORS = (
         "macOS system voices",
         is_system_backend=True,
     ),
+    BackendDescriptor(
+        LINUX_ESPEAK_TTS_BACKEND,
+        "Linux system voices (eSpeak NG)",
+        is_system_backend=True,
+    ),
 )
 
 
@@ -54,6 +61,8 @@ def backend_descriptors() -> list[BackendDescriptor]:
         descriptors.append(_BACKEND_DESCRIPTORS[2])
     if sys.platform == "darwin":
         descriptors.append(_BACKEND_DESCRIPTORS[3])
+    if sys.platform.startswith("linux") and shutil.which("espeak-ng"):
+        descriptors.append(_BACKEND_DESCRIPTORS[4])
     return descriptors
 
 
@@ -123,6 +132,17 @@ def create_backend(
         from syllavox.tts.system_speech import SystemSpeechBackend
 
         return SystemSpeechBackend(MacOSSystemSpeechProvider())
+
+    if normalized == LINUX_ESPEAK_TTS_BACKEND:
+        if not sys.platform.startswith("linux"):
+            raise BackendUnavailableError(
+                "Linux eSpeak NG system speech is available only on Linux."
+            )
+
+        from syllavox.tts.linux_espeak import LinuxESpeakProvider
+        from syllavox.tts.system_speech import SystemSpeechBackend
+
+        return SystemSpeechBackend(LinuxESpeakProvider())
 
     raise BackendUnavailableError(f"Unknown TTS backend: {backend_id}")
 

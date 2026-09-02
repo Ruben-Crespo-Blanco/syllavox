@@ -3,10 +3,11 @@
 Thank you for taking an interest in Syllavox. The project is a
 local text-to-speech application maintained as a small side project.
 
-Version 0.6.0 adds the first macOS adaptation while preserving the validated
-Windows SAPI installer path, Sherpa language coverage, hardening work, Piper
-and Sherpa voices, a shared local speech pipeline, browser-selected text,
-configurable clipboard hotkeys, polished Qt windows, and a local API.
+Version 0.7.0 adds the Ubuntu-first Linux adaptation while preserving the
+validated Windows SAPI installer path, macOS build path, Sherpa language
+coverage, hardening work, Piper and Sherpa voices, a shared local speech
+pipeline, browser-selected text, configurable clipboard hotkeys, polished Qt
+windows, and a local API.
 Contributions should preserve
 that local-first behavior unless a change is explicitly discussed first.
 
@@ -82,6 +83,42 @@ Python 3.11 can be used by replacing `python3.10` in the commands above with
 Add `--include-sherpa` when building the optional Sherpa-ONNX variant. The
 macOS script writes app, archive, and checksum artifacts under `build/macos/`;
 do not commit generated output.
+
+### Linux development and packaging
+
+The first Linux target is Ubuntu 22.04/24.04 on `amd64` or `arm64`. The
+application remains a normal Python/Qt application and uses the same source
+package as Windows and macOS. Build native Linux artifacts on Linux, not on
+Windows or macOS, because PyInstaller must collect the Linux Qt/native
+libraries.
+
+Install the host tools and optional platform integrations:
+
+```bash
+sudo apt update
+sudo apt install espeak-ng python3-venv dpkg-dev
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev,packaging,linux]"
+pytest
+```
+
+Run from source with `python -m syllavox.main`. `espeak-ng` is optional for
+the Piper-only path; when installed, it adds **Linux system voices (eSpeak
+NG)** to Settings. On X11, the `python-xlib` extra registers the configurable
+hotkey through the X server. On Wayland, `dbus-next` uses the desktop's
+freedesktop Global Shortcuts portal. A desktop without that portal may need
+the X11 session or another supported integration for global hotkeys.
+
+Build the Debian package only:
+
+```bash
+bash packaging/build_linux.sh --skip-appimage
+```
+
+Install `appimagetool` and omit `--skip-appimage` to also create an AppImage.
+Use `--include-sherpa` for the optional Sherpa-ONNX variant. Linux build
+outputs are written under `build/linux/` and should not be committed.
 
 The browser extension has its own JavaScript checks. From the `extension\`
 directory, run `npm test` when working on the extension.

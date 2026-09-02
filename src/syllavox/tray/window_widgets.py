@@ -40,6 +40,7 @@ from syllavox.constants import (
     DEFAULT_MAX_TEXT_LENGTH,
     DEFAULT_READ_HOTKEY,
     DEFAULT_TTS_BACKEND,
+    LINUX_ESPEAK_TTS_BACKEND,
     MAX_CONFIGURABLE_TEXT_LENGTH,
     MACOS_SYSTEM_TTS_BACKEND,
     SHERPA_ONNX_TTS_BACKEND,
@@ -729,6 +730,12 @@ class SettingsPanel(QGroupBox):
                 "macOS system speech uses voices installed in macOS; "
                 "Syllavox does not download or manage their voice files. It "
                 "becomes active after restarting Syllavox."
+            )
+        elif selected_backend == LINUX_ESPEAK_TTS_BACKEND:
+            self.backend_hint_label.setText(
+                "Linux system speech uses voices provided by the installed "
+                "eSpeak NG package; Syllavox does not download or manage "
+                "those voices. It becomes active after restarting Syllavox."
             )
         else:
             self.backend_hint_label.setText(

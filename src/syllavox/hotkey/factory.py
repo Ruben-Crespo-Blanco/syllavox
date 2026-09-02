@@ -7,6 +7,7 @@ from collections.abc import Callable
 
 from .backend import GlobalHotkeyBackend
 from .errors import HotkeyUnsupportedPlatformError
+from .linux_hotkey import LinuxGlobalHotkey
 from .macos_hotkey import MacOSGlobalHotkey
 from .parser import HotkeyBinding
 from .win32_hotkey import Win32GlobalHotkey
@@ -53,6 +54,9 @@ def create_global_hotkey_backend(
 
     if sys.platform == "darwin":
         return MacOSGlobalHotkey(callback=callback)
+
+    if sys.platform.startswith("linux"):
+        return LinuxGlobalHotkey(callback=callback)
 
     return UnsupportedGlobalHotkey(sys.platform)
 

@@ -3,18 +3,20 @@
 Syllavox reads text aloud on your computer using local speech synthesis. Text
 is processed on the computer rather than sent to a cloud TTS service.
 
-This is the v0.6.0 development release. Windows has an installer and a
+This is the v0.7.0 development release. Windows has an installer and a
 portable ZIP for ordinary use. The shared macOS adaptation and native build
-path are included in the source, and the macOS build path has been validated
-on a Mac. No Python installation is required for published artifacts.
+path are included in the source, and Ubuntu-first Linux source and packaging
+paths are included as well. No Python installation is required for published
+artifacts.
 
 For the concise public-release summary, see the
-[v0.6.0 implementation notes](docs/release-notes-0.6.0.md).
+[v0.7.0 implementation notes](docs/release-notes-0.7.0.md).
 
 ## Before you start
 
-- Windows remains the established supported platform for this release's
-  published artifacts; macOS source/build support is being validated on a Mac.
+- Windows remains the established published distribution path. macOS and
+  Ubuntu-first Linux source/build paths are included and require native
+  builds for their final artifacts.
 - The public application does not include voice models. You choose and
   download the voices you want from Piper's official catalog or, in a
   Sherpa-enabled build, from Syllavox's curated Sherpa-ONNX model catalog.
@@ -85,6 +87,14 @@ On macOS, choose **macOS system voices** in **Settings**, save the selection,
 and select the displayed restart action. The voice list then shows voices
 installed by macOS. If the global hotkey is unavailable, enable Syllavox under
 **System Settings → Privacy & Security → Input Monitoring**.
+
+On Ubuntu/Linux, install the optional host speech engine with
+`sudo apt install espeak-ng`, then choose **Linux system voices (eSpeak NG)**
+in **Settings**. Syllavox discovers the voices supplied by the system package;
+it does not download or manage them. X11 global hotkeys use the optional
+`python-xlib` integration. Wayland uses the desktop's Global Shortcuts portal
+when the desktop provides it; some desktops may ask for approval or may not
+offer the portal.
 
 Piper voices are downloaded from the official
 [Piper voice catalog](https://huggingface.co/rhasspy/piper-voices). A
@@ -213,10 +223,13 @@ Syllavox is designed for local operation:
 - voice downloads come from an upstream Piper catalog or a curated Sherpa
   model release only when you explicitly install a voice.
 
-The application stores runtime data under:
+The application stores runtime data under the platform's local user-data
+directory:
 
 ```text
-%LOCALAPPDATA%\Syllavox\
+Windows: %LOCALAPPDATA%\Syllavox\
+macOS: ~/Library/Application Support/Syllavox/
+Linux: $XDG_DATA_HOME/Syllavox/ or ~/.local/share/Syllavox/
 ```
 
 | Location | Contents |
@@ -278,7 +291,7 @@ itself.
 
 ## Release scope and limitations
 
-Version 0.6.0 extends the focused desktop MVP with:
+Version 0.7.0 extends the focused desktop MVP with:
 
 - one universal portable Windows distribution, including Chinese support;
 - no bundled voice models;
@@ -307,18 +320,21 @@ Version 0.6.0 extends the focused desktop MVP with:
 - a shared macOS adaptation with built-in system speech, AppKit hotkeys,
   per-user startup registration, and a native `.app` packaging path;
 - platform-specific macOS ZIP/DMG/checksum build tooling, with signing and
-  notarization hooks.
+  notarization hooks;
+- an Ubuntu-first Linux adaptation with XDG data/startup paths, X11 and
+  Wayland global-hotkey adapters, optional eSpeak NG system voices, and `.deb`
+  and AppImage packaging scaffolding.
 
 The maximum text length setting defaults to 1,000 characters and can be
 increased to 10,000. The upper bound is a practical safeguard for the current
 single-request speech workflow, not a Piper engine limitation; reading
 sessions and chunked long-form playback remain deferred until after 1.0.0.
 
-The macOS artifact still requires a native Mac build and manual verification;
-Linux remains future work. Piper remains the default backend. The base
-portable build stays Piper-only to minimize download size; Sherpa and
-system-voice builds are explicit variants, while voice models are always
-downloaded separately.
+The macOS and Linux artifacts require native builds and manual verification on
+their target systems. Piper remains the default backend. The base portable
+build stays Piper-only to minimize download size; Sherpa and system-voice
+builds are explicit variants, while voice models are always downloaded
+separately.
 Reading sessions and a dedicated accessibility-first reading interface remain
 deferred until after 1.0.0.
 The internal import package is `syllavox`, and application data is stored in
@@ -385,6 +401,34 @@ If Python 3.11 is installed and preferred, replace `python3.10` with
 under `build/macos/`; use `--include-sherpa` for an optional Sherpa-enabled
 variant.
 
+On Ubuntu 22.04/24.04 or a compatible Linux environment, install the native
+tools and optional Linux integration packages:
+
+```bash
+sudo apt update
+sudo apt install espeak-ng python3-venv dpkg-dev
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -e ".[dev,packaging,linux]"
+pytest
+python -m syllavox.main
+```
+
+The base Linux runtime uses Piper and does not require eSpeak NG. Installing
+`espeak-ng` makes **Linux system voices (eSpeak NG)** available in Settings.
+The native Linux build script creates an architecture-specific Debian package
+and, when `appimagetool` is installed, an AppImage:
+
+```bash
+bash packaging/build_linux.sh --skip-appimage
+# or, after installing appimagetool:
+bash packaging/build_linux.sh
+```
+
+Use `--include-sherpa` for a Sherpa-enabled Linux variant. The Linux build
+must run on Linux because PyInstaller collects Linux Qt/native libraries and
+the package tools cannot produce a native Linux artifact on Windows or macOS.
+
 The local API listens on `http://127.0.0.1:8765` and provides `/v1/status`,
 `/v1/speak`, `/v1/stop`, `/v1/pause`, `/v1/resume`, and `/v1/voices`.
 
@@ -393,7 +437,9 @@ optional Sherpa-ONNX backend is available behind the `sherpa` dependency and
 the **Sherpa-ONNX** Settings choice. On Windows, an optional system-speech
 provider is available behind the `sapi` dependency and the **Windows SAPI**
 Settings choice. On macOS, install the `macos` extra to enable the AppKit and
-Service Management adapters and choose **macOS system voices**. See the
+Service Management adapters and choose **macOS system voices**. On Linux,
+install the `linux` extra for X11/Wayland hotkey integration and install the
+host `espeak-ng` package when Linux system voices are wanted. See the
 [Sherpa-ONNX guide](docs/sherpa-onnx-experimental.md) for setup, catalogs,
 model bundles, and benchmarking. The [future language model candidates](docs/sherpa-onnx/future-language-model-candidates.md)
 document tracks models that may be integrated later. See the project-level

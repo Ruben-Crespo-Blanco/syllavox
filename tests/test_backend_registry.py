@@ -3,7 +3,11 @@ from __future__ import annotations
 import pytest
 
 import syllavox.tts.backend_registry as registry
-from syllavox.constants import MACOS_SYSTEM_TTS_BACKEND, WINDOWS_SAPI_TTS_BACKEND
+from syllavox.constants import (
+    LINUX_ESPEAK_TTS_BACKEND,
+    MACOS_SYSTEM_TTS_BACKEND,
+    WINDOWS_SAPI_TTS_BACKEND,
+)
 from syllavox.tts.errors import BackendUnavailableError
 
 
@@ -56,6 +60,21 @@ def test_backend_registry_exposes_macos_system_speech(monkeypatch) -> None:
     assert descriptors[-1].is_system_backend is True
 
 
+def test_backend_registry_exposes_linux_espeak_when_installed(monkeypatch) -> None:
+    monkeypatch.setattr(registry.sys, "platform", "linux")
+    monkeypatch.setattr(registry.shutil, "which", lambda name: "/usr/bin/espeak-ng")
+
+    descriptors = registry.backend_descriptors()
+
+    assert [descriptor.backend_id for descriptor in descriptors] == [
+        "piper",
+        "sherpa_onnx",
+        LINUX_ESPEAK_TTS_BACKEND,
+    ]
+    assert descriptors[-1].display_name == "Linux system voices (eSpeak NG)"
+    assert descriptors[-1].is_system_backend is True
+
+
 def test_platform_system_backends_do_not_cross_activate(monkeypatch) -> None:
     monkeypatch.setattr(registry.sys, "platform", "win32")
 
@@ -66,3 +85,8 @@ def test_platform_system_backends_do_not_cross_activate(monkeypatch) -> None:
 
     with pytest.raises(BackendUnavailableError, match="only on Windows"):
         registry.create_backend(WINDOWS_SAPI_TTS_BACKEND)
+
+    monkeypatch.setattr(registry.sys, "platform", "win32")
+
+    with pytest.raises(BackendUnavailableError, match="only on Linux"):
+        registry.create_backend(LINUX_ESPEAK_TTS_BACKEND)

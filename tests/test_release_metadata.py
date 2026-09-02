@@ -25,7 +25,7 @@ def _project_version_from_pyproject() -> str:
 
 
 def test_release_version_is_consistent_across_project_metadata() -> None:
-    assert PROJECT_VERSION == "0.6.0"
+    assert PROJECT_VERSION == "0.7.0"
     assert _project_version_from_pyproject() == PROJECT_VERSION
 
     for manifest_name in ("manifest.json", "manifest.firefox.json"):
@@ -104,6 +104,47 @@ def test_macos_packaging_metadata_and_build_script_are_present() -> None:
     assert 'MACOSX_DEPLOYMENT_TARGET="11.0"' in macos_build_script
     assert "hdiutil create" in macos_build_script
     assert "notarytool submit" in macos_build_script
+
+
+def test_linux_packaging_metadata_and_dependencies_are_present() -> None:
+    project = tomllib.loads(
+        (PROJECT_ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    )
+    linux_requirements = project["project"]["optional-dependencies"]["linux"]
+
+    assert any(
+        requirement.startswith("dbus-next")
+        for requirement in linux_requirements
+    )
+    assert any(
+        requirement.startswith("python-xlib")
+        for requirement in linux_requirements
+    )
+
+    linux_build_script = (
+        PROJECT_ROOT / "packaging" / "build_linux.sh"
+    ).read_text(encoding="utf-8")
+    linux_desktop = (
+        PROJECT_ROOT
+        / "packaging"
+        / "linux"
+        / "com.ruben-crespo-blanco.syllavox.desktop"
+    ).read_text(encoding="utf-8")
+    linux_metainfo = (
+        PROJECT_ROOT
+        / "packaging"
+        / "linux"
+        / "com.ruben-crespo-blanco.syllavox.metainfo.xml"
+    ).read_text(encoding="utf-8")
+
+    assert "dpkg-deb --build" in linux_build_script
+    assert "appimagetool" in linux_build_script
+    assert "com.ruben-crespo-blanco.syllavox" in linux_desktop
+    assert "com.ruben-crespo-blanco.syllavox" in linux_metainfo
+    assert any(
+        classifier.endswith("POSIX :: Linux")
+        for classifier in project["project"]["classifiers"]
+    )
 
 
 def test_windows_installer_is_per_user_and_uses_the_portable_output() -> None:

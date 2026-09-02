@@ -25,6 +25,7 @@ from PySide6.QtWidgets import (
 
 from syllavox.constants import (
     DEFAULT_READ_HOTKEY,
+    LINUX_ESPEAK_TTS_BACKEND,
     MACOS_SYSTEM_TTS_BACKEND,
     PRODUCT_NAME,
     SHERPA_ONNX_TTS_BACKEND,
@@ -89,6 +90,7 @@ class MainWindow(QMainWindow):
         elif backend_manager.backend_name() in {
             WINDOWS_SAPI_TTS_BACKEND,
             MACOS_SYSTEM_TTS_BACKEND,
+            LINUX_ESPEAK_TTS_BACKEND,
         }:
             self._voice_catalog = SystemVoiceCatalog(
                 system_voice_name=backend_display_name(
@@ -247,7 +249,7 @@ class MainWindow(QMainWindow):
         content_column.setObjectName("contentColumn")
         content_column.setMaximumWidth(MAX_CONTENT_WIDTH)
         content_column.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Ignored,
             QSizePolicy.Policy.Preferred,
         )
         content_layout = QVBoxLayout(content_column)
@@ -273,7 +275,7 @@ class MainWindow(QMainWindow):
         footer_column.setObjectName("appFooter")
         footer_column.setMaximumWidth(MAX_CONTENT_WIDTH)
         footer_column.setSizePolicy(
-            QSizePolicy.Policy.Expanding,
+            QSizePolicy.Policy.Ignored,
             QSizePolicy.Policy.Fixed,
         )
         save_layout.setContentsMargins(24, 0, 24, 16)

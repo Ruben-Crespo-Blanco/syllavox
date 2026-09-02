@@ -40,6 +40,9 @@ sherpa_hiddenimports = []
 sapi_datas = []
 sapi_binaries = []
 sapi_hiddenimports = []
+linux_datas = []
+linux_binaries = []
+linux_hiddenimports = []
 
 if os.environ.get("SYLLAVOX_INCLUDE_SHERPA") == "1":
     try:
@@ -75,6 +78,24 @@ if os.environ.get("SYLLAVOX_INCLUDE_SAPI") == "1":
         *collect_submodules("comtypes.gen"),
         "comtypes.automation",
         "comtypes.typeinfo",
+    ]
+
+if os.environ.get("SYLLAVOX_INCLUDE_LINUX") == "1":
+    try:
+        import dbus_next  # noqa: F401
+        import Xlib  # noqa: F401
+    except ImportError as exc:
+        raise RuntimeError(
+            "Linux packaging was requested, but the optional Linux "
+            "dependencies are not installed. Run: python -m pip install "
+            "-e .[linux]"
+        ) from exc
+
+    linux_datas = collect_data_files("dbus_next", include_py_files=True)
+    linux_datas += collect_data_files("Xlib", include_py_files=True)
+    linux_hiddenimports = [
+        *collect_submodules("dbus_next"),
+        *collect_submodules("Xlib"),
     ]
 tray_icon_datas = [
     (
@@ -144,6 +165,14 @@ if os.environ.get("SYLLAVOX_INCLUDE_SAPI") != "1":
         "comtypes.*",
     ])
 
+if os.environ.get("SYLLAVOX_INCLUDE_LINUX") != "1":
+    runtime_excludes.extend([
+        "dbus_next",
+        "dbus_next.*",
+        "Xlib",
+        "Xlib.*",
+    ])
+
 excluded_qt_binary_suffixes = {
     "pyside6/qt6quick.dll",
     "pyside6/qt6qml.dll",
@@ -177,6 +206,7 @@ analysis = Analysis(
         + onnx_binaries
         + sherpa_binaries
         + sapi_binaries
+        + linux_binaries
     ),
     datas=(
         piper_datas
@@ -185,6 +215,7 @@ analysis = Analysis(
         + tray_icon_datas
         + sherpa_datas
         + sapi_datas
+        + linux_datas
     ),
     hiddenimports=[
         "piper",
@@ -202,6 +233,7 @@ analysis = Analysis(
         "onnxruntime.capi._pybind_state",
         *sherpa_hiddenimports,
         *sapi_hiddenimports,
+        *linux_hiddenimports,
     ],
     hookspath=[],
     hooksconfig={},

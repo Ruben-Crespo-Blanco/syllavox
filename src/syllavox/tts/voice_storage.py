@@ -180,6 +180,8 @@ class PiperVoiceStorage:
     def _validate_voice_id(voice_id: str) -> None:
         if (
             not voice_id
+            or "/" in voice_id
+            or "\\" in voice_id
             or Path(voice_id).name != voice_id
             or voice_id in {".", ".."}
         ):

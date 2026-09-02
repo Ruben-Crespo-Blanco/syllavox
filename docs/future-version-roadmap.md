@@ -2,10 +2,9 @@
 
 This roadmap maps planned development to proposed versions. The version
 assignments are planning targets, not commitments. The current development
-milestone is v0.6.0, which adds the shared macOS adaptation and native macOS
-packaging path. The native Mac build path has been validated; final artifact
-publication still requires the documented manual smoke test and release
-checks.
+milestone is v0.7.0, which adds the Ubuntu-first Linux adaptation and native
+Linux packaging path. The Windows-hosted Linux seam tests pass; native Linux
+artifact and desktop-session validation still require Ubuntu or Linux CI.
 
 ## Version plan
 
@@ -578,6 +577,83 @@ bundle branch, Info.plist, native build script, Python 3.10 compatibility
 shims, and simulated regression tests are implemented. The native macOS build
 path has been validated. The remaining v0.6 gate is manual application
 verification on the target Mac architectures before publishing artifacts.
+
+## v0.7.0 implementation plan and status
+
+v0.7.0 adds Linux support in the existing codebase. It targets Ubuntu 22.04
+and 24.04 first on `amd64` and `arm64`, while keeping the platform boundary
+open for other distributions after the first native release has been tested.
+Piper remains the default, Sherpa-ONNX remains optional, and system voices are
+provided by the host rather than bundled as model files.
+
+### Platform services
+
+- Use the existing platform factories for Linux global hotkeys and startup
+  registration; keep Windows and macOS behavior unchanged.
+- Register X11 shortcuts through optional `python-xlib`, including lock and
+  NumLock variants, without reading raw keyboard devices.
+- Register Wayland shortcuts through the freedesktop Global Shortcuts portal
+  using optional `dbus-next`; report a clear limitation when the desktop does
+  not expose the portal.
+- Write per-user XDG autostart entries and retain the AppImage/source command
+  that launched Syllavox. Do not require root or write system-wide startup
+  services.
+- Reuse the existing Qt tray/window, audio playback, single-instance, and
+  settings contracts. Linux-specific imports remain lazy.
+
+### Linux system speech
+
+- Implement `SystemSpeechProvider` with the host `espeak-ng` command.
+- Discover voices through `espeak-ng --voices`, retain locale codes, and show
+  readable language names in the existing system-voice UI.
+- Render through stdin to temporary WAV files, validate mono 16-bit output,
+  atomically move the result into the normal Syllavox audio path, and clean up
+  temporary files on success or failure.
+- Keep eSpeak NG optional. A Piper-only Linux installation must still work,
+  and no eSpeak voices or voice models are copied into the base artifact.
+
+### Packaging and distribution
+
+- Add Linux PyInstaller collection rules only for an explicitly requested
+  Linux build, leaving the Windows and macOS collection paths isolated.
+- Create an architecture-specific Debian package with desktop entry,
+  AppStream metadata, icon, runtime dependencies, and project notices.
+- Create an AppImage when `appimagetool` is installed; allow Debian-only
+  builds for environments that do not want the AppImage tool.
+- Build on native Ubuntu/Linux hosts. The Windows development machine can run
+  seam tests but cannot produce a native Linux artifact.
+
+### Dependencies and resource policy
+
+- Keep `dbus-next` and `python-xlib` in the Linux optional extra, not in the
+  Windows or macOS dependency sets.
+- Keep eSpeak NG as a host package, not a Python dependency or bundled model
+  runtime. This keeps the default download smaller and lets distributions own
+  the system voice resources.
+- Keep Sherpa-ONNX opt-in and voice archives outside the application bundle.
+
+### Acceptance criteria
+
+- The full regression suite passes on the Windows development host and native
+  Linux tests pass on Ubuntu.
+- Piper synthesis, optional Sherpa synthesis, eSpeak discovery/synthesis,
+  backend switching, restart, hotkey registration, startup, tray behavior,
+  and clean shutdown work on the target Ubuntu sessions.
+- X11 and at least one portal-backed Wayland desktop are manually tested;
+  unsupported portal environments report an actionable message.
+- `amd64` Debian and AppImage artifacts launch on a clean Ubuntu test machine;
+  `arm64` packaging is verified on native hardware or an equivalent Linux CI
+  runner before publication.
+- The `.deb` metadata installs the correct desktop entry, icon, and launcher,
+  and the base artifact does not contain optional Sherpa or downloaded voice
+  models.
+
+### Current implementation status
+
+The shared Linux startup, hotkey, eSpeak system-speech, backend/UI integration,
+PyInstaller, Debian, and AppImage paths are implemented. Windows-hosted seam
+tests cover the new code and pass. Native Ubuntu build, X11/Wayland, eSpeak,
+tray, `.deb`, AppImage, and resource measurements remain the release gates.
 
 ## Sherpa-ONNX and rust-tts-wrapper evaluation
 

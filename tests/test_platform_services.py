@@ -54,3 +54,20 @@ def test_hotkey_factory_selects_macos_backend(monkeypatch) -> None:
 
     assert isinstance(backend, FakeMacOSBackend)
     assert calls == [callback]
+
+
+def test_hotkey_factory_selects_linux_backend(monkeypatch) -> None:
+    calls: list[object] = []
+
+    class FakeLinuxBackend:
+        def __init__(self, callback) -> None:
+            calls.append(callback)
+
+    monkeypatch.setattr(hotkey_factory.sys, "platform", "linux")
+    monkeypatch.setattr(hotkey_factory, "LinuxGlobalHotkey", FakeLinuxBackend)
+
+    callback = lambda: None
+    backend = hotkey_factory.create_global_hotkey_backend(callback)
+
+    assert isinstance(backend, FakeLinuxBackend)
+    assert calls == [callback]

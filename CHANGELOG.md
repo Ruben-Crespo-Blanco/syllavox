@@ -1,5 +1,37 @@
 # Changelog
 
+## [0.7.0] - 2026-09-02
+
+Syllavox 0.7.0 adds the Ubuntu-first Linux adaptation in the shared
+codebase. Piper remains the default speech engine, Sherpa-ONNX remains
+optional, and Linux system voices are provided by the host's eSpeak NG
+package rather than bundled into the application.
+
+### Added
+
+- Linux XDG data/startup integration with a per-user autostart desktop entry.
+- Linux global-hotkey selection for X11 and Wayland.
+- X11 registration through optional `python-xlib` and Wayland registration
+  through the freedesktop Global Shortcuts portal with optional `dbus-next`.
+- A Linux eSpeak NG system-voice provider that discovers host voices and
+  produces validated mono, 16-bit WAV output through the shared system-speech
+  abstraction.
+- Clear Linux backend and system-voice labels in Settings and voice
+  management, with no Linux voice-model downloads managed by Syllavox.
+- Ubuntu-first Linux packaging scaffolding for architecture-specific `.deb`
+  and AppImage artifacts, with optional Sherpa inclusion.
+- Linux platform regression coverage for startup files, backend selection,
+  eSpeak rendering, hotkey routing, X11 registration, and UI behavior.
+
+### Validation and release scope
+
+- The Windows-hosted automated suite validates the Linux seams with fakes and
+  passes without importing Linux-only libraries during ordinary test startup.
+- Native eSpeak NG voice discovery, X11/Wayland registration, tray behavior,
+  and Debian/AppImage builds still require manual validation on Ubuntu.
+- Reading sessions and the accessibility-first reading interface remain
+  deferred until after 1.0.0.
+
 ## [0.6.0] - 2026-08-30
 
 Syllavox 0.6.0 adds the first macOS adaptation in the shared codebase while
