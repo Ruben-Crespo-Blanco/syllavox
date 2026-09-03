@@ -1,5 +1,7 @@
 # Syllavox browser extension
 
+This extension is compatible with the Syllavox v1.0.0 desktop release.
+
 The Syllavox browser extension lets you select text on a webpage and send it
 to the Syllavox desktop application for local speech synthesis.
 
@@ -12,13 +14,17 @@ For the main application guide, see the [project README](../README.md).
 
 | Browser | Status |
 |---|---|
-| Google Chrome | Supported |
-| Microsoft Edge | Supported |
-| Mozilla Firefox | Experimental; temporary installation |
+| Google Chrome | Submission package ready; store review pending |
+| Microsoft Edge | Submission package ready; store review pending |
+| Mozilla Firefox | Experimental; signed-store review pending |
 
-The v0.5.0 release does not provide a signed browser-store extension. Chrome
-and Edge use an unpacked extension installation. Firefox temporary add-ons
-must be loaded again after Firefox restarts.
+The repository produces minimal-permission Chromium and Firefox submission
+ZIPs, but no browser-store listing should be claimed until external review is
+complete. Until then, Chrome and Edge use an unpacked development install and
+Firefox uses a temporary development install.
+
+Store descriptions, permission justifications, and data disclosure are in
+the [store listing copy](../docs/STORE_LISTING.md).
 
 ## Before installing
 
@@ -54,14 +60,18 @@ must be loaded again after Firefox restarts.
 Firefox removes temporary add-ons when it restarts. Repeat these steps after a
 restart.
 
-For a staged Firefox package, run this command from the `extension` folder:
+For staged Chromium and Firefox packages, run these commands from the
+`extension` folder:
 
 ```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\package_chromium.ps1
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\package_firefox.ps1
 ```
 
-The script creates a temporary Firefox folder and ZIP under `build\firefox\`.
-This is a testing package, not a signed permanent Firefox distribution.
+The scripts create staged folders, ZIPs, and SHA-256 files under
+`build\chromium\` and `build\firefox\`. CI publishes the same outputs as a
+workflow artifact. These are submission/testing packages, not signed permanent
+store distributions.
 
 ## Use the extension
 
@@ -102,7 +112,9 @@ from `about:debugging`.
 
 The extension sends selected text only to the Syllavox application on the same
 computer. It uses the local API and does not send selected text to a remote
-speech service.
+speech service. It requests only context-menu, notification, and
+`127.0.0.1:8765` permissions; it does not request page-wide, tab, scripting, or
+remote-host access.
 
 ## For extension developers
 

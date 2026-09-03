@@ -2,9 +2,9 @@ $ErrorActionPreference = "Stop"
 
 $extensionRoot = $PSScriptRoot
 $repositoryRoot = Split-Path -Parent $extensionRoot
-$buildRoot = Join-Path $repositoryRoot "build\firefox"
+$buildRoot = Join-Path $repositoryRoot "build\chromium"
 $packageRoot = Join-Path $buildRoot "Syllavox"
-$zipPath = Join-Path $buildRoot "Syllavox-firefox.zip"
+$zipPath = Join-Path $buildRoot "Syllavox-chromium.zip"
 $hashPath = "$zipPath.sha256"
 
 $buildRootFull = [System.IO.Path]::GetFullPath($buildRoot)
@@ -32,7 +32,7 @@ if (Test-Path -LiteralPath $hashPath) {
 
 New-Item -ItemType Directory -Path $packageRoot -Force | Out-Null
 Copy-Item -LiteralPath (Join-Path $extensionRoot "background.js") -Destination $packageRoot
-Copy-Item -LiteralPath (Join-Path $extensionRoot "manifest.firefox.json") -Destination (Join-Path $packageRoot "manifest.json")
+Copy-Item -LiteralPath (Join-Path $extensionRoot "manifest.json") -Destination $packageRoot
 Copy-Item -LiteralPath (Join-Path $extensionRoot "icons") -Destination $packageRoot -Recurse
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
@@ -45,6 +45,6 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
 $hash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
 Set-Content -LiteralPath $hashPath -Value "$hash  $(Split-Path -Leaf $zipPath)" -Encoding ASCII
 
-Write-Output "Firefox package folder: $packageRoot"
-Write-Output "Firefox package ZIP:    $zipPath"
-Write-Output "SHA-256 file:           $hashPath"
+Write-Output "Chromium package folder: $packageRoot"
+Write-Output "Chromium package ZIP:    $zipPath"
+Write-Output "SHA-256 file:            $hashPath"

@@ -166,7 +166,10 @@ test("manifests reference the required extension files and permissions", () => {
     assert.equal(manifest.manifest_version, 3);
     assert.ok(manifest.permissions.includes("contextMenus"));
     assert.ok(manifest.permissions.includes("notifications"));
+    assert.ok(!manifest.permissions.includes("activeTab"));
+    assert.ok(!manifest.permissions.includes("scripting"));
     assert.ok(manifest.host_permissions.includes("http://127.0.0.1:8765/*"));
+    assert.equal(manifest.content_scripts, undefined);
 
     const backgroundFiles = manifest.background.service_worker
       ? [manifest.background.service_worker]
@@ -174,12 +177,6 @@ test("manifests reference the required extension files and permissions", () => {
 
     for (const backgroundFile of backgroundFiles) {
       assert.ok(fs.existsSync(path.join(extensionDirectory, backgroundFile)));
-    }
-
-    for (const contentScript of manifest.content_scripts) {
-      for (const script of contentScript.js) {
-        assert.ok(fs.existsSync(path.join(extensionDirectory, script)));
-      }
     }
 
     for (const iconPath of Object.values(manifest.icons)) {
@@ -283,7 +280,7 @@ test("Firefox browser namespace supports context-menu speech", async () => {
   assert.deepEqual(browser.notifications, []);
 });
 
-test("page selection is requested when the context-menu payload has no text", async () => {
+test("missing context-menu selection is reported without requesting page access", async () => {
   const calls = [];
   const browser = loadBackground({
     fetchImpl: async (url, options) => {
@@ -296,8 +293,6 @@ test("page selection is requested when the context-menu payload has no text", as
       return makeResponse({ status: "accepted" });
     }
   });
-  browser.chrome.tabs.sendMessage = async () => ({ text: "  Page text  " });
-
   await browser.events.clicked.emit(
     {
       menuItemId: "read-selected-text-locally",
@@ -306,8 +301,8 @@ test("page selection is requested when the context-menu payload has no text", as
     { id: 7 }
   );
 
-  const requestBody = JSON.parse(calls[1].options.body);
-  assert.equal(requestBody.text, "Page text");
+  assert.equal(calls.length, 0);
+  assert.equal(browser.notifications[0].title, "No text selected");
 });
 
 test("an empty selection produces a user notification without an API call", async () => {

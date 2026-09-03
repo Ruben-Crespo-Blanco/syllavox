@@ -1,10 +1,10 @@
 # Syllavox Future-Version Roadmap
 
 This roadmap maps planned development to proposed versions. The version
-assignments are planning targets, not commitments. The current development
-milestone is v0.7.0, which adds the Ubuntu-first Linux adaptation and native
-Linux packaging path. The Windows-hosted Linux seam tests pass; native Linux
-artifact and desktop-session validation still require Ubuntu or Linux CI.
+assignments are planning targets, not commitments. The current release is
+v1.0.0, which consolidates the multi-platform paths and the activation,
+reading, accessibility, and distribution work delivered after the 0.7.x line.
+Later entries are forward-looking backlog, not promises for the current release.
 
 ## Version plan
 
@@ -20,7 +20,8 @@ artifact and desktop-session validation still require Ubuntu or Linux CI.
 | **0.5.0** | Windows SAPI and distribution | Add Windows SAPI as an optional TTS backend that discovers installed system voices and renders compatible WAV output; introduce the system-speech provider boundary needed by future macOS and Linux adapters; add a per-user Windows installer and opt-in Windows startup registration; preserve Piper and Sherpa as existing options. |
 | **0.6.0** | macOS adaptation | Add macOS platform services, global hotkeys, single-instance handling, tray behavior, audio validation, packaging, manual testing, and a native macOS system-speech provider behind the v0.5 abstraction. |
 | **0.7.0** | Linux adaptation | Add Linux platform services, hotkeys, tray integration, packaging, distribution testing, documented supported environments, and a supported Linux system-speech provider behind the v0.5 abstraction. |
-| **1.0.0** | Stable multi-platform release | Consolidate supported platforms, resolve major compatibility issues, stabilize APIs and settings, add a complete user-facing installer, complete release documentation, and establish a reliable feedback and maintenance process. |
+| **0.8.0** | Activation and reading workflow | **Delivered in v1.0.0:** zero-download system-voice fallback, guided onboarding, recommended locale voices, advanced-only engine settings, sentence/paragraph navigation, saved reading position, synchronized unit highlighting, accessibility metadata, extension submission packages, and clear platform tiers. |
+| **1.0.0** | Stable multi-platform release | **Current release:** consolidated platform paths, stabilized APIs and settings, release documentation, support policy, and a reliable feedback and maintenance process. |
 
 The existing **0.3.0 UI/UX** phase remains focused on a minimal, smooth, and
 original visual language inspired by Apple's restraint, spacing, hierarchy, and
@@ -32,19 +33,16 @@ branding. The hotkey work should retain `Ctrl+Alt+R` as the default, use the
 existing parser and registration layer, persist the selected shortcut, and
 explain invalid or unavailable shortcuts without leaving the application with a
 stale or silently changed binding.
-Reading sessions and a dedicated accessibility-first reading interface are
-explicitly outside the numbered roadmap and are deferred to an unassigned
-future phase after 1.0.0.
+Reading sessions and the accessibility baseline were delivered in v1.0.0.
+Exact word-level timing and highlighting inside third-party applications remain
+outside the current scope.
 
-### Deferred beyond 1.0.0
+### Later product backlog
 
-- Reading sessions with sentence/paragraph navigation, replay, previous/next
-  controls, and a persistent reading position.
-- An accessibility-first reading UI with screen-reader-oriented interaction,
-  high-contrast behavior, expanded keyboard control, and optional synchronized
-  text highlighting.
 - Context-agnostic highlighting inside arbitrary browsers, PDFs, Word
   documents, or other host applications.
+- Pronunciation overrides, postponed until the core reading workflow and the
+  document-import decision have been validated.
 
 ## v0.4.1 implementation plan
 

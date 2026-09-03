@@ -90,6 +90,20 @@ def test_speak_preserves_request_id(tmp_path: Path) -> None:
     assert payload["requestId"] == "custom-id"
 
 
+def test_client_request_id_is_not_used_as_an_artifact_name(tmp_path: Path) -> None:
+    client, _context, backend, _audio_player = make_api_client(tmp_path=tmp_path)
+
+    response = client.post(
+        "/v1/speak",
+        json={"text": "Hello", "requestId": "../outside"},
+    )
+
+    assert response.status_code == 200
+    assert backend.last_request.request_id == "../outside"
+    assert backend.last_request.artifact_id != "../outside"
+    assert "/" not in backend.last_request.artifact_id
+
+
 def test_stop_transitions_to_stopped(tmp_path: Path) -> None:
     client, context = make_test_client(tmp_path)
 

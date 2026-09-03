@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
 import shutil
 import tarfile
@@ -30,6 +31,7 @@ class PiperVoiceStorage:
         self._models_dir = models_dir
         self._urlopen = urlopen_fn
         self._timeout_seconds = timeout_seconds
+        self._recover_install_transactions()
 
     @property
     def models_dir(self) -> Path:
@@ -123,9 +125,10 @@ class PiperVoiceStorage:
         return removed_size
 
     def install_voice(self, entry: VoiceCatalogEntry) -> VoiceCatalogEntry:
-        """Download one selected voice atomically into the model directory."""
+        """Download and transactionally install a Piper model/config pair."""
         self._validate_voice_id(entry.voice_id)
         self._models_dir.mkdir(parents=True, exist_ok=True)
+        transaction_dir: Path | None = None
 
         try:
             with tempfile.TemporaryDirectory(
@@ -139,10 +142,37 @@ class PiperVoiceStorage:
                 self._download_file(entry.model_url, model_temp_path)
                 self._download_file(entry.config_url, config_temp_path)
 
-                model_temp_path.replace(self._models_dir / model_temp_path.name)
-                config_temp_path.replace(self._models_dir / config_temp_path.name)
+                destinations = self._voice_paths(entry.voice_id)
+                transaction_dir = self._begin_install_transaction(
+                    entry.voice_id,
+                    destinations,
+                )
+                self._replace_installed_file(model_temp_path, destinations[0])
+                self._replace_installed_file(config_temp_path, destinations[1])
+                self._write_transaction_manifest(
+                    transaction_dir,
+                    entry.voice_id,
+                    destinations,
+                    phase="committed",
+                )
+                committed_transaction_dir = transaction_dir
+                transaction_dir = None
+                try:
+                    self._remove_transaction_dir(committed_transaction_dir)
+                except OSError:
+                    # A committed journal is harmless and will be cleaned on
+                    # the next storage initialization.
+                    pass
 
         except Exception as exc:
+            if transaction_dir is not None:
+                try:
+                    self._recover_transaction(transaction_dir)
+                except Exception as rollback_exc:
+                    raise VoiceCatalogError(
+                        f"Could not install Piper voice {entry.voice_id}; "
+                        f"rollback also failed: {rollback_exc}"
+                    ) from exc
             if isinstance(exc, VoiceCatalogError):
                 raise
 
@@ -151,6 +181,151 @@ class PiperVoiceStorage:
             ) from exc
 
         return replace(entry, installed=True)
+
+    def _begin_install_transaction(
+        self,
+        voice_id: str,
+        destinations: tuple[Path, Path],
+    ) -> Path:
+        transaction_dir = self._transaction_dir(voice_id)
+        if transaction_dir.exists():
+            self._recover_transaction(transaction_dir)
+        transaction_dir.mkdir(parents=True)
+
+        for destination, backup_name in zip(
+            destinations,
+            ("model.backup", "config.backup"),
+        ):
+            if destination.is_file():
+                shutil.copy2(destination, transaction_dir / backup_name)
+
+        self._write_transaction_manifest(
+            transaction_dir,
+            voice_id,
+            destinations,
+            phase="prepared",
+        )
+        return transaction_dir
+
+    def _write_transaction_manifest(
+        self,
+        transaction_dir: Path,
+        voice_id: str,
+        destinations: tuple[Path, Path],
+        *,
+        phase: str,
+    ) -> None:
+        manifest_path = transaction_dir / "transaction.json"
+        temporary_path = transaction_dir / ".transaction.json.tmp"
+        payload = {
+            "version": 1,
+            "voice_id": voice_id,
+            "phase": phase,
+            "model_existed": (transaction_dir / "model.backup").is_file(),
+            "config_existed": (transaction_dir / "config.backup").is_file(),
+            "model_name": destinations[0].name,
+            "config_name": destinations[1].name,
+        }
+        try:
+            with temporary_path.open("w", encoding="utf-8") as handle:
+                json.dump(payload, handle, indent=2, ensure_ascii=False)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+            os.replace(temporary_path, manifest_path)
+        finally:
+            temporary_path.unlink(missing_ok=True)
+
+    def _recover_install_transactions(self) -> None:
+        transaction_root = self._transaction_root()
+        if not transaction_root.is_dir():
+            return
+
+        try:
+            for transaction_dir in transaction_root.iterdir():
+                if transaction_dir.is_dir():
+                    self._recover_transaction(transaction_dir)
+            transaction_root.rmdir()
+        except OSError as exc:
+            raise VoiceCatalogError(
+                f"Could not recover an interrupted Piper voice install: {exc}"
+            ) from exc
+
+    def _recover_transaction(self, transaction_dir: Path) -> None:
+        manifest_path = transaction_dir / "transaction.json"
+        if not manifest_path.is_file():
+            self._remove_transaction_dir(transaction_dir)
+            return
+
+        try:
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            if manifest.get("phase") == "committed":
+                self._remove_transaction_dir(transaction_dir)
+                return
+
+            voice_id = str(manifest["voice_id"])
+            self._validate_voice_id(voice_id)
+            destinations = self._voice_paths(voice_id)
+            expected_names = (
+                manifest.get("model_name"),
+                manifest.get("config_name"),
+            )
+            if expected_names != tuple(path.name for path in destinations):
+                raise VoiceCatalogError(
+                    "The interrupted Piper install manifest is invalid."
+                )
+
+            for destination, backup_name, existed_key in zip(
+                destinations,
+                ("model.backup", "config.backup"),
+                ("model_existed", "config_existed"),
+            ):
+                backup_path = transaction_dir / backup_name
+                if bool(manifest.get(existed_key)):
+                    if not backup_path.is_file():
+                        raise VoiceCatalogError(
+                            "The interrupted Piper install backup is incomplete."
+                        )
+                    restore_path = destination.with_name(
+                        f".{destination.name}.restore"
+                    )
+                    try:
+                        shutil.copy2(backup_path, restore_path)
+                        os.replace(restore_path, destination)
+                    finally:
+                        restore_path.unlink(missing_ok=True)
+                else:
+                    destination.unlink(missing_ok=True)
+
+            self._remove_transaction_dir(transaction_dir)
+        except (
+            OSError,
+            KeyError,
+            TypeError,
+            ValueError,
+            json.JSONDecodeError,
+        ) as exc:
+            raise VoiceCatalogError(
+                f"Could not recover Piper install transaction: {exc}"
+            ) from exc
+
+    def _transaction_root(self) -> Path:
+        return self._models_dir / ".install-transactions"
+
+    def _transaction_dir(self, voice_id: str) -> Path:
+        digest = hashlib.sha256(voice_id.encode("utf-8")).hexdigest()
+        return self._transaction_root() / digest
+
+    @staticmethod
+    def _remove_transaction_dir(transaction_dir: Path) -> None:
+        try:
+            shutil.rmtree(transaction_dir)
+        except FileNotFoundError:
+            return
+
+    @staticmethod
+    def _replace_installed_file(source: Path, destination: Path) -> None:
+        os.replace(source, destination)
 
     def _download_file(self, url: str, destination: Path) -> None:
         try:

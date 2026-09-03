@@ -1,22 +1,25 @@
 # Public feedback guide
 
-Thank you for testing Syllavox 0.4.2. This guide is for people trying the
-public Windows MVP, including people who do not work with Python or source
-code.
+Thank you for testing Syllavox 1.0.0. This guide is for people testing the
+supported Windows path or the
+best-effort macOS and Ubuntu paths, including people who do not work with
+Python or source code.
 
 ## What to test first
 
 The basic test takes about ten minutes:
 
-1. Extract the portable ZIP and start `Syllavox.exe`.
-2. Open the window from the tray icon.
-3. Install one English voice through **Find more voices...**.
-4. Enter a short sentence and select **Speak**.
-5. Try changing the voice and speaking again.
-6. Copy a sentence and test `Ctrl+Alt+R`.
-7. Change **Read hotkey** in **Settings**, save it, and test the new shortcut.
-8. Try **Pause**, **Resume**, **Stop**, and **Export WAV...**.
-9. Quit and restart Syllavox.
+1. Install the recommended artifact for your operating system and start it.
+2. Open the window from the tray or menu-bar icon.
+3. Follow **Quick setup** and try the sample with an available system voice.
+4. Open **Choose an offline voice...** and inspect the recommended voice; a
+   download is optional for this test.
+5. Enter two short paragraphs and select **Speak**.
+6. Try previous, replay, next, and sentence/paragraph navigation.
+7. Stop on the second unit, close and reopen the window, and confirm the text
+   and highlighted position return.
+8. Copy a sentence in another application and test `Ctrl+Alt+R`.
+9. Try **Pause**, **Resume**, **Stop**, and **Export WAV...**.
 
 If you use a browser, also test selecting text and choosing **Read selected
 text locally** from the context menu. The application must be running first.
@@ -29,8 +32,8 @@ Chinese voice may download the additional `g2pW` resource on first use.
 Please report both failures and confusing or unexpectedly good behavior. The
 most useful information is:
 
-- Syllavox version, normally `0.4.2`;
-- Windows version;
+- Syllavox version, normally `1.0.0` or a named development revision;
+- operating system, version, architecture, and desktop session where relevant;
 - exact voice ID and language;
 - how you started speech: window, hotkey, browser, or API;
 - what you expected;
@@ -65,22 +68,28 @@ to other people. Share only what is necessary to reproduce the behavior.
 When the basic test is complete, consider these questions:
 
 - Was it clear how to install the first voice?
+- Could you hear the sample without downloading a voice model?
 - Was it clear where the application was running when the window was hidden?
 - Did the voice selector make language and quality understandable?
 - Did the hotkey and browser extension use the voice you expected?
 - Was any wait time or error message confusing?
 - Which feature would make Syllavox useful in your daily work?
+- Which one file format, if any, cannot be handled by copying and pasting?
 
 ## Current limitations
 
-The 0.4.2 release is a Windows portable MVP language-coverage release following
-the hardening, UI/UX, compatibility, privacy, and optional Sherpa-ONNX work in
-earlier versions. It has no installer or automatic updater, Firefox support is
-experimental, voice models are downloaded by the user, and new speech requests
-interrupt current playback instead of entering a queue. The Settings section
-includes a complete local-data cleanup action; exported WAV files saved
-elsewhere are not deleted. Sherpa's four new v0.4.2 Mimic3 voices are optional
-and require a Sherpa-enabled build.
+Windows is the supported distribution; macOS and Ubuntu have narrower tiers
+described in the [support matrix](docs/support-matrix.md). Browser-store review
+has not been completed, Firefox remains experimental, and voice models are
+downloaded only after the user chooses them. New hotkey, browser, and API
+requests interrupt current playback instead of entering a queue. Reading text
+and position are restored from the local settings file; **Clear local data and
+quit** removes them with other Syllavox-managed data. Exported WAV files saved
+elsewhere are not deleted.
+
+For moderated activation and document-format research, use the separate
+[research plan](docs/user-research-plan.md) rather than changing this general
+feedback script.
 
 ## Security reports
 

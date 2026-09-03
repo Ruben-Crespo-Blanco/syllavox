@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from dataclasses import replace
 
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
@@ -83,5 +84,26 @@ def test_view_accepts_sherpa_bundle_entries() -> None:
 
     assert view.selected_entry() == entry
     assert view.install_button.isEnabled() is True
+
+    view.close()
+
+
+def test_view_selects_a_quality_voice_for_the_preferred_language() -> None:
+    low = replace(
+        make_entry("en_US-low", "alpha", "en_US"),
+        quality="low",
+    )
+    high = replace(
+        make_entry("en_GB-high", "beta", "en_GB"),
+        quality="high",
+    )
+    unrelated = make_entry("es_ES-medium", "gamma", "es_ES")
+    view = VoiceCatalogView(preferred_language_code="en_AU")
+
+    view.populate([low, unrelated, high], set())
+
+    assert view.selected_entry() is not None
+    assert view.selected_entry().voice_id == "en_GB-high"
+    assert "Recommended" in view.tree.currentItem().text(0)
 
     view.close()

@@ -5,6 +5,7 @@ TTS model and temporary audio path helpers.
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 from syllavox.constants import (
     MODELS_DIR_NAME,
@@ -94,21 +95,28 @@ def cleanup_temporary_audio_files() -> tuple[int, int]:
     return removed_count, failed_count
 
 
+_ARTIFACT_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+
+
+def _artifact_filename(artifact_id: str) -> str:
+    """Return a safe WAV filename for one internal synthesis artifact."""
+    if not _ARTIFACT_ID_PATTERN.fullmatch(artifact_id):
+        raise ValueError("The synthesis artifact ID is invalid.")
+    return f"{artifact_id}.wav"
+
+
 def get_request_audio_path(
-    request_id: str,
+    artifact_id: str,
 ) -> Path:
     """
     Return the WAV output path for a synthesis request.
 
     Example:
-        %LOCALAPPDATA%/Syllavox/tmp/<request_id>.wav
+        %LOCALAPPDATA%/Syllavox/tmp/<artifact_id>.wav
     """
-    filename = f"{request_id}.wav"
-
-    return get_tmp_dir() / filename
+    return get_tmp_dir() / _artifact_filename(artifact_id)
 
 
-def get_retained_audio_path(request_id: str) -> Path:
+def get_retained_audio_path(artifact_id: str) -> Path:
     """Return the path for an explicitly retained synthesis artifact."""
-    filename = f"{request_id}.wav"
-    return get_retained_audio_dir() / filename
+    return get_retained_audio_dir() / _artifact_filename(artifact_id)

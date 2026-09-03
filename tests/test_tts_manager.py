@@ -128,6 +128,21 @@ def test_manager_selects_default_voice_when_missing() -> None:
     assert result.voice_id == "fake-voice"
 
 
+def test_manager_preserves_internal_artifact_id_when_resolving_voice() -> None:
+    backend = FakeBackend()
+    manager = TTSBackendManager(backend=backend)
+    request = SynthesisRequest(
+        text="Hello",
+        request_id="client-correlation-id",
+        artifact_id="internal-artifact",
+    )
+
+    manager.synthesize(request)
+
+    assert backend.last_request is not None
+    assert backend.last_request.artifact_id == "internal-artifact"
+
+
 def test_manager_uses_configured_default_voice_when_request_omits_voice() -> None:
     backend = FakeBackend(
         voices=[

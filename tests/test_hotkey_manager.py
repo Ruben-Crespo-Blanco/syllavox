@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import logging
+import threading
+import time
 from dataclasses import dataclass
 from typing import Callable
 
 import pytest
+from PySide6.QtCore import QCoreApplication
 
 import syllavox.hotkey.manager as manager_module
 from syllavox.hotkey.errors import (
@@ -296,3 +299,37 @@ def test_registered_hotkey_dispatches_selected_action(
     backend.simulate_press()
 
     assert speak_calls == 1
+
+
+def test_worker_thread_hotkey_callback_runs_on_qt_owner_thread(
+    fake_backend_class: type[FakeHotkeyBackend],
+    logger: logging.Logger,
+) -> None:
+    application = QCoreApplication.instance() or QCoreApplication([])
+    owner_thread_id = threading.get_ident()
+    callback_thread_ids: list[int] = []
+    callback_finished = threading.Event()
+
+    def speak_clipboard() -> None:
+        callback_thread_ids.append(threading.get_ident())
+        callback_finished.set()
+
+    manager = HotkeyManager(
+        logger=logger,
+        speak_clipboard_callback=speak_clipboard,
+        open_window_callback=lambda: None,
+    )
+    manager.register("Ctrl+Alt+R")
+    backend = manager._backend
+    assert isinstance(backend, FakeHotkeyBackend)
+
+    worker = threading.Thread(target=backend.simulate_press)
+    worker.start()
+    worker.join(timeout=2.0)
+
+    deadline = time.monotonic() + 2.0
+    while not callback_finished.is_set() and time.monotonic() < deadline:
+        application.processEvents()
+        time.sleep(0.01)
+
+    assert callback_thread_ids == [owner_thread_id]

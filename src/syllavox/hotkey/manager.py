@@ -13,16 +13,24 @@ isolated in the platform backend modules.
 from __future__ import annotations
 
 from collections.abc import Callable
-from logging import Logger
 from dataclasses import dataclass
+from logging import Logger
+
+from PySide6.QtCore import QThread
 
 from syllavox.compat import StrEnum
 from syllavox.hotkey.backend import GlobalHotkeyBackend
-from syllavox.hotkey.errors import HotkeyActionError, HotkeyRegistrationError, HotkeyUnsupportedPlatformError
+from syllavox.hotkey.errors import (
+    HotkeyActionError,
+    HotkeyRegistrationError,
+    HotkeyUnsupportedPlatformError,
+)
 from syllavox.hotkey.factory import create_global_hotkey_backend
+from syllavox.qt_bridge import QtCallbackRelay
 
 
 ActionCallback = Callable[[], None]
+
 
 @dataclass(frozen=True)
 class HotkeyStatus:
@@ -30,6 +38,7 @@ class HotkeyStatus:
     registered: bool
     key: str | None
     message: str
+
 
 class HotkeyAction(StrEnum):
     """
@@ -64,20 +73,30 @@ class HotkeyManager:
         self._open_window_callback = open_window_callback
 
         self._action = HotkeyAction.SPEAK_CLIPBOARD
+        self._activation_relay = QtCallbackRelay(
+            lambda _payload: self._handle_hotkey_pressed()
+        )
 
         self._backend = backend or create_global_hotkey_backend(
-            callback=self._handle_hotkey_pressed,
+            callback=self._dispatch_hotkey_pressed,
         )
         self._status = HotkeyStatus(
             enabled=False,
             registered=False,
             key=None,
             message="Disabled",
-            )
+        )
+
+    def _dispatch_hotkey_pressed(self) -> None:
+        """Deliver worker-thread platform callbacks to the Qt owner thread."""
+        if QThread.currentThread() == self._activation_relay.thread():
+            self._handle_hotkey_pressed()
+            return
+        self._activation_relay.dispatch(None)
 
     def status(self) -> HotkeyStatus:
         return self._status
-    
+
     def set_disabled(self) -> None:
         """
         Mark the hotkey as disabled by application settings.

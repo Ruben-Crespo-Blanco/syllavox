@@ -1,9 +1,10 @@
 # Security policy
 
-Syllavox is a local Windows application. Its speech API listens on
-`127.0.0.1`, and the browser extension communicates with that local address.
-The application does use the internet when a user explicitly browses or
-downloads voices from the official Piper catalog.
+Syllavox is a local desktop application with a supported Windows path and
+narrower macOS/Linux support tiers. Its speech API listens on `127.0.0.1`, and
+the browser extension communicates with that local address. The application
+uses the internet when a user explicitly browses or downloads voices from an
+upstream catalog.
 
 ## Supported versions
 
@@ -11,7 +12,8 @@ The current public release is:
 
 | Version | Supported |
 |---|---|
-| 0.1.x | Yes |
+| Current `1.0.x` release | Yes |
+| `0.7.x` and earlier | No |
 
 The project is a small side project, so response times cannot be
 guaranteed. Security reports will be reviewed as soon as practical.
@@ -29,7 +31,7 @@ exploit details, private text, or unredacted logs in a public channel.
 Useful information includes:
 
 - the affected Syllavox version;
-- Windows version and architecture;
+- operating system, version, architecture, and desktop session where relevant;
 - whether the report concerns the portable application, API, or browser
   extension;
 - clear reproduction steps;
@@ -42,7 +44,7 @@ Please allow time for the report to be investigated before public disclosure.
 
 Examples of security issues include:
 
-- the portable release containing unexpected executable or data files;
+- a release artifact containing unexpected executable or data files;
 - selected text being sent somewhere other than the local application without
   the user's action;
 - the local API accepting unsafe commands or exposing data beyond its intended

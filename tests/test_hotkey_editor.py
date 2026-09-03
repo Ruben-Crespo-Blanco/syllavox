@@ -88,3 +88,14 @@ def test_settings_panel_shows_restart_action_for_backend_change() -> None:
 
     panel.backend_restart_button.click()
     assert restart_requests == [True]
+
+
+def test_settings_panel_exposes_setup_again_action() -> None:
+    panel = SettingsPanel()
+    requests: list[bool] = []
+    panel.setup_again_requested.connect(lambda: requests.append(True))
+
+    panel.setup_again_button.click()
+
+    assert requests == [True]
+    assert "quick setup tutorial" in panel.setup_again_button.accessibleDescription()

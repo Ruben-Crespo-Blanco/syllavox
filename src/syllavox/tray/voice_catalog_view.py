@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QLocale, Qt, Signal
 from PySide6.QtWidgets import (
     QHBoxLayout,
     QLabel,
@@ -29,12 +29,17 @@ class VoiceCatalogView(QWidget):
         *,
         backend_label: str = "Piper",
         catalog_url: str | None = None,
+        preferred_language_code: str | None = None,
     ) -> None:
         super().__init__(parent)
+        self._preferred_language_code = (
+            preferred_language_code or QLocale.system().name()
+        ).replace("-", "_")
 
         intro_label = QLabel(
             f"Choose a {backend_label} voice to install locally. Downloads happen only "
-            "when you press Install."
+            "when you press Install. A recommended voice is selected for your system "
+            "language when the catalog contains one."
         )
         intro_label.setWordWrap(True)
 
@@ -55,6 +60,7 @@ class VoiceCatalogView(QWidget):
         self.tree = QTreeWidget()
         self.tree.setHeaderLabels(["Voice", "Quality", "Status"])
         self.tree.setRootIsDecorated(True)
+        self.tree.setAccessibleName("Available offline voices")
         self.tree.currentItemChanged.connect(self._on_current_item_changed)
 
         self.status_label = QLabel(f"Loading {backend_label} voice catalog\u2026")
@@ -63,6 +69,9 @@ class VoiceCatalogView(QWidget):
         self.refresh_button = QPushButton("Refresh catalog")
         self.install_button = QPushButton("Install selected")
         self.close_button = QPushButton("Close")
+        self.install_button.setAccessibleDescription(
+            "Download the selected voice and store it on this computer."
+        )
 
         self.refresh_button.clicked.connect(self.refresh_requested)
         self.install_button.clicked.connect(self.install_requested)
@@ -96,6 +105,8 @@ class VoiceCatalogView(QWidget):
         self.tree.clear()
 
         groups: dict[str, QTreeWidgetItem] = {}
+        recommended_voice_id = self._recommended_voice_id(entries)
+        recommended_item: QTreeWidgetItem | None = None
 
         for entry in sorted(
             entries,
@@ -115,7 +126,11 @@ class VoiceCatalogView(QWidget):
             voice_item = QTreeWidgetItem(
                 group,
                 [
-                    entry.display_name,
+                    (
+                        f"{entry.display_name} — Recommended"
+                        if entry.voice_id == recommended_voice_id
+                        else entry.display_name
+                    ),
                     entry.quality,
                     "Installed" if installed else "Available",
                 ],
@@ -130,11 +145,51 @@ class VoiceCatalogView(QWidget):
                 Qt.ItemDataRole.UserRole + 1,
                 entry,
             )
+            if entry.voice_id == recommended_voice_id:
+                recommended_item = voice_item
 
         self.tree.expandAll()
-        if self.tree.topLevelItemCount() > 0:
+        if recommended_item is not None:
+            self.tree.setCurrentItem(recommended_item)
+        elif self.tree.topLevelItemCount() > 0:
             self.tree.setCurrentItem(self.tree.topLevelItem(0))
         self._update_install_button()
+
+    def _recommended_voice_id(
+        self,
+        entries: list[VoiceCatalogEntry | SherpaCatalogEntry],
+    ) -> str | None:
+        """Choose one quality-first voice matching the system language."""
+        preferred = self._preferred_language_code.lower()
+        preferred_family = preferred.split("_", 1)[0]
+        quality_rank = {"high": 0, "medium": 1, "low": 2}
+
+        def match_rank(entry: VoiceCatalogEntry | SherpaCatalogEntry) -> int:
+            codes = getattr(entry, "language_codes", (entry.language_code,))
+            normalized_codes = [
+                code.lower().replace("-", "_") for code in codes
+            ]
+            if preferred in normalized_codes:
+                return 0
+            if any(
+                code.split("_", 1)[0] == preferred_family
+                for code in normalized_codes
+            ):
+                return 1
+            return 2
+
+        candidates = sorted(
+            entries,
+            key=lambda entry: (
+                match_rank(entry),
+                quality_rank.get(entry.quality.lower(), 3),
+                entry.name.lower(),
+                entry.voice_id,
+            ),
+        )
+        if not candidates or match_rank(candidates[0]) == 2:
+            return None
+        return candidates[0].voice_id
 
     def selected_entry(self) -> VoiceCatalogEntry | SherpaCatalogEntry | None:
         """Return the selected catalog entry, if a voice row is selected."""

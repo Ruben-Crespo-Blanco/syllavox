@@ -11,8 +11,11 @@ from __future__ import annotations
 
 from collections.abc import Iterator
 from contextlib import contextmanager
+from functools import wraps
 from logging import Logger
 from pathlib import Path
+import threading
+from typing import Any, Callable, TypeVar
 
 from syllavox.audio.errors import PlaybackError
 from syllavox.audio.player import AudioPlayerPort
@@ -25,6 +28,26 @@ from syllavox.tts.base import (
 from syllavox.tts.errors import InvalidSynthesisRequestError
 from syllavox.tts.manager import TTSBackendManager
 from syllavox.text_formatting import normalize_for_speech
+
+
+_ReturnT = TypeVar("_ReturnT")
+
+
+def _serialized_command(
+    method: Callable[..., _ReturnT],
+) -> Callable[..., _ReturnT]:
+    """Run one speech lifecycle command at a time, in arrival order."""
+
+    @wraps(method)
+    def synchronized(
+        self: "SpeechController",
+        *args: Any,
+        **kwargs: Any,
+    ) -> _ReturnT:
+        with self._command_lock:
+            return method(self, *args, **kwargs)
+
+    return synchronized
 
 
 class SpeechController:
@@ -53,12 +76,28 @@ class SpeechController:
         self._audio_player = audio_player
         self._logger = logger
         self._active_request_id: str | None = None
+        self._command_lock = threading.RLock()
+        self._completion_listeners: list[Callable[[str], None]] = []
+
+    @_serialized_command
+    def add_completion_listener(self, listener: Callable[[str], None]) -> None:
+        """Register a callback for natural playback completion."""
+        if listener not in self._completion_listeners:
+            self._completion_listeners.append(listener)
+
+    @_serialized_command
+    def remove_completion_listener(self, listener: Callable[[str], None]) -> None:
+        """Remove a previously registered completion callback."""
+        if listener in self._completion_listeners:
+            self._completion_listeners.remove(listener)
 
     @property
+    @_serialized_command
     def active_request_id(self) -> str | None:
         """Return the request currently owned by the speech lifecycle."""
         return self._active_request_id
 
+    @_serialized_command
     def speak(
         self,
         text: str,
@@ -114,6 +153,7 @@ class SpeechController:
 
         return result
 
+    @_serialized_command
     def export_wav(
         self,
         text: str,
@@ -147,6 +187,7 @@ class SpeechController:
 
         return result
 
+    @_serialized_command
     def stop(self) -> bool:
         """
         Stop active playback.
@@ -188,6 +229,7 @@ class SpeechController:
 
         return True
 
+    @_serialized_command
     def pause(self) -> bool:
         """Pause the active request without releasing its audio artifact."""
         if (
@@ -207,6 +249,7 @@ class SpeechController:
         )
         return True
 
+    @_serialized_command
     def resume(self) -> bool:
         """Resume the currently paused request."""
         if (
@@ -226,22 +269,27 @@ class SpeechController:
         )
         return True
 
+    @_serialized_command
     def set_volume(self, volume: float) -> None:
         """Set the shared playback volume."""
         self._audio_player.set_volume(volume)
 
+    @_serialized_command
     def volume(self) -> float:
         """Return the shared playback volume."""
         return self._audio_player.volume()
 
+    @_serialized_command
     def set_playback_rate(self, rate: float) -> None:
         """Set the shared playback speed multiplier."""
         self._audio_player.set_playback_rate(rate)
 
+    @_serialized_command
     def playback_rate(self) -> float:
         """Return the shared playback speed multiplier."""
         return self._audio_player.playback_rate()
 
+    @_serialized_command
     def handle_playback_finished(self, request_id: str) -> None:
         """Apply a natural-completion event to the active speech request."""
         if request_id != self._active_request_id:
@@ -267,6 +315,16 @@ class SpeechController:
                 "Failed to transition to READY after playback completion: %s",
                 exc,
             )
+            return
+
+        for listener in list(self._completion_listeners):
+            try:
+                listener(request_id)
+            except Exception:
+                self._logger.exception(
+                    "Playback completion listener failed: request_id=%s",
+                    request_id,
+                )
 
     def _interrupt_active_playback(
         self,

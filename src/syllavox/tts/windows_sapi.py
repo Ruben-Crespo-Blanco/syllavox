@@ -424,9 +424,9 @@ class WindowsSapiProvider:
         if request.output_path is not None:
             final_path = Path(request.output_path)
         elif request.retention == AudioRetention.RETAIN:
-            final_path = get_retained_audio_path(request.request_id)
+            final_path = get_retained_audio_path(request.artifact_id)
         else:
-            final_path = get_request_audio_path(request.request_id)
+            final_path = get_request_audio_path(request.artifact_id)
 
         final_path.parent.mkdir(parents=True, exist_ok=True)
         with NamedTemporaryFile(

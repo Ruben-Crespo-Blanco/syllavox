@@ -18,6 +18,9 @@ from .startup import StartupRegistrationError
 
 LINUX_DESKTOP_ID = "com.ruben-crespo-blanco.syllavox"
 LINUX_AUTOSTART_FILE_NAME = f"{LINUX_DESKTOP_ID}.desktop"
+_DESKTOP_EXEC_RESERVED = frozenset(
+    " \t\n\"'\\><~|&;$*?#()`"
+)
 
 
 def get_linux_autostart_dir(
@@ -75,13 +78,29 @@ def build_linux_startup_arguments(
 
 def _desktop_exec_argument(argument: str) -> str:
     """Quote one Exec key argument using desktop-entry quoting rules."""
-    if argument and all(
-        character not in argument for character in (" ", "\t", '"', "'", "\\")
-    ):
-        return argument
+    if any(ord(character) < 32 or ord(character) == 127 for character in argument):
+        raise StartupRegistrationError(
+            "Linux startup command arguments cannot contain control characters."
+        )
 
-    escaped = argument.replace("\\", "\\\\").replace('"', '\\"')
-    return f'"{escaped}"'
+    needs_quotes = not argument or any(
+        character in _DESKTOP_EXEC_RESERVED for character in argument
+    )
+    escaped_parts: list[str] = []
+    for character in argument:
+        if character == "%":
+            escaped_parts.append("%%")
+        elif character == "\\":
+            # The desktop-entry string parser and Exec parser each consume
+            # one escaping layer.
+            escaped_parts.append(r"\\\\")
+        elif character in {'"', "`", "$"}:
+            escaped_parts.append("\\\\" + character)
+        else:
+            escaped_parts.append(character)
+
+    escaped = "".join(escaped_parts)
+    return f'"{escaped}"' if needs_quotes else escaped
 
 
 def build_linux_autostart_entry(

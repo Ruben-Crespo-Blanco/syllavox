@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 from types import SimpleNamespace
 
 import pytest
@@ -12,6 +13,73 @@ def test_portal_trigger_uses_xdg_modifier_names() -> None:
     binding = linux_hotkey.parse_hotkey("Ctrl+Alt+Shift+Win+R")
 
     assert linux_hotkey._portal_trigger(binding) == "CTRL+ALT+SHIFT+LOGO+R"
+
+
+def test_portal_tokens_are_unique_and_safe_for_object_paths() -> None:
+    first = linux_hotkey._new_portal_token("bind")
+    second = linux_hotkey._new_portal_token("bind")
+
+    assert first != second
+    assert first.replace("_", "").isalnum()
+
+
+def test_wayland_request_subscribes_before_immediate_portal_response() -> None:
+    class FakeMessage:
+        def __init__(self, **values) -> None:
+            self.__dict__.update(values)
+
+    class FakeBus:
+        unique_name = ":1.42"
+
+        def __init__(self) -> None:
+            self.handlers = []
+
+        def add_message_handler(self, handler) -> None:
+            self.handlers.append(handler)
+
+        def remove_message_handler(self, handler) -> None:
+            self.handlers.remove(handler)
+
+        async def call(self, message):
+            token = message.body[0]["handle_token"]
+            request_path = linux_hotkey._portal_request_path(
+                self.unique_name,
+                token,
+            )
+            response = SimpleNamespace(
+                message_type=SimpleNamespace(name="SIGNAL"),
+                path=request_path,
+                interface=linux_hotkey.WAYLAND_REQUEST_INTERFACE,
+                member="Response",
+                body=[0, {"approved": True}],
+            )
+            for handler in list(self.handlers):
+                handler(response)
+            return SimpleNamespace(
+                message_type=SimpleNamespace(name="METHOD_RETURN"),
+                body=[request_path],
+            )
+
+    backend = linux_hotkey.LinuxWaylandGlobalHotkey.__new__(
+        linux_hotkey.LinuxWaylandGlobalHotkey
+    )
+    backend._bus = FakeBus()
+    backend._timeout_seconds = 0.1
+    token = "syllavox_create_test"
+
+    result = asyncio.run(
+        backend._call_request(
+            FakeMessage,
+            object(),
+            request_token=token,
+            interface=linux_hotkey.WAYLAND_GLOBAL_SHORTCUTS_INTERFACE,
+            member="CreateSession",
+            signature="a{sv}",
+            body=[{"handle_token": token}],
+        )
+    )
+
+    assert result == {"approved": True}
 
 
 def test_linux_hotkey_selector_uses_wayland_factory(monkeypatch) -> None:

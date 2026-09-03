@@ -6,10 +6,11 @@ Backend-neutral TTS interfaces and shared dataclasses.
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 
 class AudioRetention(str, Enum):
@@ -58,6 +59,7 @@ class SynthesisRequest:
     voice_id: str | None = None
     retention: AudioRetention = AudioRetention.TEMPORARY
     output_path: Path | None = None
+    artifact_id: str = field(default_factory=lambda: uuid4().hex)
 
 
 @dataclass(frozen=True)

@@ -14,13 +14,13 @@ extensionApi.runtime.onInstalled.addListener(() => {
   });
 });
 
-extensionApi.contextMenus.onClicked.addListener(async (info, tab) => {
+extensionApi.contextMenus.onClicked.addListener(async (info) => {
   if (info.menuItemId !== CONTEXT_MENU_ID) {
     return;
   }
 
   try {
-    const selectedText = await getSelectedText(info, tab);
+    const selectedText = getSelectedText(info);
 
     if (!selectedText) {
       showNotification(
@@ -62,20 +62,8 @@ extensionApi.contextMenus.onClicked.addListener(async (info, tab) => {
   }
 });
 
-async function getSelectedText(info, tab) {
-  if (info.selectionText && info.selectionText.trim()) {
-    return info.selectionText.trim();
-  }
-
-  if (!tab || !tab.id) {
-    return "";
-  }
-
-  const messageResult = await extensionApi.tabs.sendMessage(tab.id, {
-    type: "GET_SELECTED_TEXT"
-  });
-
-  return (messageResult?.text || "").trim();
+function getSelectedText(info) {
+  return (info.selectionText || "").trim();
 }
 
 async function speakText(text, requestId) {

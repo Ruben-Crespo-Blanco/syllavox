@@ -1,3 +1,6 @@
+import pytest
+from pydantic import ValidationError
+
 from syllavox.api.schemas import (
     ApiError,
     BackendStatus,
@@ -20,6 +23,15 @@ def test_speak_request_parsing() -> None:
     assert request.text == "Hello world"
     assert request.voiceId == "en_US-test"
     assert request.requestId == "abc123"
+
+
+@pytest.mark.parametrize(
+    "request_id",
+    ("", "line\nbreak", "control\x00character", "x" * 129),
+)
+def test_speak_request_rejects_invalid_correlation_ids(request_id: str) -> None:
+    with pytest.raises(ValidationError):
+        SpeakRequest(text="Hello", requestId=request_id)
 
 
 def test_speak_response_creation() -> None:

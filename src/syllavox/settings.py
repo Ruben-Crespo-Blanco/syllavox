@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import copy
 import json
+import os
+import tempfile
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -135,8 +137,26 @@ class SettingsManager:
         if self._settings is None:
             self._settings = get_default_settings()
 
-        with self._settings_path.open("w", encoding="utf-8") as handle:
-            json.dump(self._settings, handle, indent=2, ensure_ascii=False)
+        temporary_path: Path | None = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode="w",
+                encoding="utf-8",
+                dir=self._settings_path.parent,
+                prefix=f".{self._settings_path.name}.",
+                suffix=".tmp",
+                delete=False,
+            ) as handle:
+                temporary_path = Path(handle.name)
+                json.dump(self._settings, handle, indent=2, ensure_ascii=False)
+                handle.write("\n")
+                handle.flush()
+                os.fsync(handle.fileno())
+
+            os.replace(temporary_path, self._settings_path)
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
 
     def update(self, new_settings: dict[str, Any]) -> None:
         """

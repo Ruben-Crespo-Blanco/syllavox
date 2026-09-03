@@ -60,6 +60,39 @@ def test_linux_startup_quotes_paths_and_can_be_disabled(tmp_path: Path) -> None:
     assert path.exists() is False
 
 
+def test_linux_startup_escapes_reserved_and_field_code_characters() -> None:
+    assert linux_startup._desktop_exec_argument("100%") == "100%%"
+    assert linux_startup._desktop_exec_argument("$HOME") == '"\\\\$HOME"'
+    assert linux_startup._desktop_exec_argument("with&shell") == '"with&shell"'
+    assert linux_startup._desktop_exec_argument("say`hello") == '"say\\\\`hello"'
+    assert linux_startup._desktop_exec_argument("a\\b") == '"a\\\\\\\\b"'
+
+
+@pytest.mark.parametrize(
+    "reserved_character",
+    (" ", '"', "'", "\\", ">", "<", "~", "|", "&", ";", "$", "*", "?", "#", "(", ")", "`"),
+)
+def test_linux_startup_quotes_every_exec_reserved_character(
+    reserved_character: str,
+) -> None:
+    serialized = linux_startup._desktop_exec_argument(
+        f"before{reserved_character}after"
+    )
+
+    assert serialized.startswith('"')
+    assert serialized.endswith('"')
+
+
+@pytest.mark.parametrize("control_character", ("\n", "\r", "\t", "\x00", "\x7f"))
+def test_linux_startup_rejects_control_characters(
+    control_character: str,
+) -> None:
+    with pytest.raises(StartupRegistrationError, match="control characters"):
+        linux_startup._desktop_exec_argument(
+            f"before{control_character}after"
+        )
+
+
 def test_linux_startup_rejects_other_platforms(tmp_path: Path) -> None:
     with pytest.raises(StartupRegistrationError, match="only on Linux"):
         linux_startup.set_linux_startup_enabled(

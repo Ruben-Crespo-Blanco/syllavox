@@ -54,6 +54,8 @@ done
 
 [[ "$(uname -s)" == "Linux" ]] || die "this script must run on Linux"
 command -v dpkg-deb >/dev/null 2>&1 || die "required command is missing: dpkg-deb"
+command -v desktop-file-validate >/dev/null 2>&1 || die "required command is missing: desktop-file-validate"
+command -v sha256sum >/dev/null 2>&1 || die "required command is missing: sha256sum"
 
 PYTHON="${PYTHON:-${PROJECT_ROOT}/.venv/bin/python}"
 [[ -x "${PYTHON}" ]] || die "Python executable not found: ${PYTHON}"
@@ -76,6 +78,7 @@ esac
 ARTIFACT_STEM="Syllavox-${VERSION}-linux-${DEB_ARCH}"
 DEB_PATH="${BUILD_ROOT}/${ARTIFACT_STEM}.deb"
 APPIMAGE_PATH="${BUILD_ROOT}/${ARTIFACT_STEM}.AppImage"
+CHECKSUM_PATH="${BUILD_ROOT}/${ARTIFACT_STEM}.sha256"
 
 mkdir -p "${BUILD_ROOT}" "${DIST_ROOT}" "${WORK_ROOT}"
 
@@ -100,6 +103,7 @@ ICON_SOURCE="${PROJECT_ROOT}/src/syllavox/assets/tray_icon.png"
 [[ -f "${DESKTOP_FILE}" ]] || die "desktop file not found: ${DESKTOP_FILE}"
 [[ -f "${METAINFO_FILE}" ]] || die "AppStream metadata not found: ${METAINFO_FILE}"
 [[ -f "${ICON_SOURCE}" ]] || die "icon source not found: ${ICON_SOURCE}"
+desktop-file-validate "${DESKTOP_FILE}"
 
 DEB_ROOT="${BUILD_ROOT}/debroot"
 rm -rf "${DEB_ROOT}"
@@ -158,10 +162,19 @@ if [[ "${SKIP_APPIMAGE}" -eq 0 ]]; then
         "${APPDIR}/usr/share/applications/com.ruben-crespo-blanco.syllavox.desktop"
     sed -i 's#^Exec=.*#Exec=Syllavox#' \
         "${APPDIR}/usr/share/applications/com.ruben-crespo-blanco.syllavox.desktop"
+    desktop-file-validate \
+        "${APPDIR}/usr/share/applications/com.ruben-crespo-blanco.syllavox.desktop"
     cp "${METAINFO_FILE}" \
         "${APPDIR}/usr/share/metainfo/com.ruben-crespo-blanco.syllavox.metainfo.xml"
     cp "${ICON_SOURCE}" \
         "${APPDIR}/usr/share/icons/hicolor/256x256/apps/com.ruben-crespo-blanco.syllavox.png"
+    ln -s \
+        "usr/share/applications/com.ruben-crespo-blanco.syllavox.desktop" \
+        "${APPDIR}/com.ruben-crespo-blanco.syllavox.desktop"
+    ln -s \
+        "usr/share/icons/hicolor/256x256/apps/com.ruben-crespo-blanco.syllavox.png" \
+        "${APPDIR}/com.ruben-crespo-blanco.syllavox.png"
+    ln -s "com.ruben-crespo-blanco.syllavox.png" "${APPDIR}/.DirIcon"
     cat > "${APPDIR}/AppRun" <<'EOF'
 #!/bin/sh
 set -eu
@@ -174,8 +187,16 @@ EOF
     "${APPIMAGE_TOOL}" "${APPDIR}" "${APPIMAGE_PATH}"
 fi
 
+rm -f "${CHECKSUM_PATH}"
+if [[ "${SKIP_APPIMAGE}" -eq 0 ]]; then
+    sha256sum "${DEB_PATH}" "${APPIMAGE_PATH}" > "${CHECKSUM_PATH}"
+else
+    sha256sum "${DEB_PATH}" > "${CHECKSUM_PATH}"
+fi
+
 printf 'Created Linux artifacts in %s:\n' "${BUILD_ROOT}"
 printf '  %s\n' "${DEB_PATH}"
 if [[ "${SKIP_APPIMAGE}" -eq 0 ]]; then
     printf '  %s\n' "${APPIMAGE_PATH}"
 fi
+printf '  %s\n' "${CHECKSUM_PATH}"

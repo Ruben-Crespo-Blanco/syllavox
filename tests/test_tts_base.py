@@ -45,6 +45,15 @@ def test_synthesis_request_creation() -> None:
     assert request.voice_id == "en_US-lessac-medium"
     assert request.retention == AudioRetention.TEMPORARY
     assert request.output_path is None
+    assert len(request.artifact_id) == 32
+
+
+def test_synthesis_requests_use_unique_artifact_ids_for_same_correlation_id() -> None:
+    first = SynthesisRequest(text="First", request_id="same-client-id")
+    second = SynthesisRequest(text="Second", request_id="same-client-id")
+
+    assert first.request_id == second.request_id
+    assert first.artifact_id != second.artifact_id
 
 
 def test_synthesis_request_can_select_an_output_path(tmp_path: Path) -> None:

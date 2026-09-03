@@ -66,6 +66,18 @@ def backend_descriptors() -> list[BackendDescriptor]:
     return descriptors
 
 
+def available_system_backend_id() -> str | None:
+    """Return the system speech backend available in this environment."""
+    return next(
+        (
+            descriptor.backend_id
+            for descriptor in backend_descriptors()
+            if descriptor.is_system_backend
+        ),
+        None,
+    )
+
+
 def get_backend_descriptor(backend_id: object) -> BackendDescriptor | None:
     normalized = normalize_backend_id(backend_id)
     return next(
@@ -149,6 +161,7 @@ def create_backend(
 
 __all__ = [
     "BackendDescriptor",
+    "available_system_backend_id",
     "backend_descriptors",
     "backend_display_name",
     "create_backend",

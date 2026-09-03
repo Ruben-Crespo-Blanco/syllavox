@@ -58,6 +58,7 @@ def test_backend_registry_exposes_macos_system_speech(monkeypatch) -> None:
     ]
     assert descriptors[-1].display_name == "macOS system voices"
     assert descriptors[-1].is_system_backend is True
+    assert registry.available_system_backend_id() == MACOS_SYSTEM_TTS_BACKEND
 
 
 def test_backend_registry_exposes_linux_espeak_when_installed(monkeypatch) -> None:
@@ -73,6 +74,7 @@ def test_backend_registry_exposes_linux_espeak_when_installed(monkeypatch) -> No
     ]
     assert descriptors[-1].display_name == "Linux system voices (eSpeak NG)"
     assert descriptors[-1].is_system_backend is True
+    assert registry.available_system_backend_id() == LINUX_ESPEAK_TTS_BACKEND
 
 
 def test_platform_system_backends_do_not_cross_activate(monkeypatch) -> None:

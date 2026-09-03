@@ -15,6 +15,7 @@ $distRoot = Join-Path $buildRoot "portable"
 $workRoot = Join-Path $buildRoot "pyinstaller"
 $portableRoot = Join-Path $distRoot "Syllavox"
 $zipPath = Join-Path $buildRoot "Syllavox-portable.zip"
+$hashPath = "$zipPath.sha256"
 $projectLicense = Join-Path $projectRoot "LICENSE"
 $pyproject = Join-Path $projectRoot "pyproject.toml"
 $thirdPartyNotices = Join-Path $projectRoot "THIRD_PARTY_NOTICES.md"
@@ -94,6 +95,9 @@ if (-not $SkipPyInstaller) {
 
     if (Test-Path -LiteralPath $zipPath) {
         Remove-Item -LiteralPath $zipPath -Force
+    }
+    if (Test-Path -LiteralPath $hashPath) {
+        Remove-Item -LiteralPath $hashPath -Force
     }
 
     & $pythonPath -m PyInstaller `
@@ -303,5 +307,9 @@ Add-Type -AssemblyName System.IO.Compression.FileSystem
     $false
 )
 
+$hash = (Get-FileHash -LiteralPath $zipPath -Algorithm SHA256).Hash
+Set-Content -LiteralPath $hashPath -Value "$hash  $(Split-Path -Leaf $zipPath)" -Encoding ASCII
+
 Write-Output "Portable folder: $portableRoot"
 Write-Output "Portable ZIP:    $zipPath"
+Write-Output "SHA-256 file:    $hashPath"

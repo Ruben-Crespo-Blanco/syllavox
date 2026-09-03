@@ -3,12 +3,16 @@
 from __future__ import annotations
 
 import ctypes
+import hashlib
+import re
 import sys
-import tempfile
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any, Protocol
 
 from PySide6.QtCore import QLockFile
+
+from .platform_paths import get_platform_app_dir
 
 
 INSTANCE_MUTEX_NAME = "Local\\Syllavox"
@@ -74,8 +78,8 @@ class _QtLockFile:
     """Cross-platform fallback for development on non-Windows systems."""
 
     def __init__(self, name: str) -> None:
-        safe_name = name.replace("\\", "_").replace("/", "_")
-        lock_path = Path(tempfile.gettempdir()) / f"{safe_name}.lock"
+        lock_path = get_instance_lock_path(name)
+        lock_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock_file = QLockFile(str(lock_path))
         self._acquired = False
 
@@ -92,6 +96,27 @@ class _QtLockFile:
 
         self._lock_file.unlock()
         self._acquired = False
+
+
+def get_instance_lock_path(
+    name: str = INSTANCE_MUTEX_NAME,
+    *,
+    platform_name: str | None = None,
+    environment: Mapping[str, str] | None = None,
+    home: Path | None = None,
+) -> Path:
+    """Return a collision-resistant lock path in the current user's data dir."""
+    safe_name = re.sub(r"[^A-Za-z0-9._-]+", "_", name).strip("._") or "syllavox"
+    name_digest = hashlib.sha256(name.encode("utf-8")).hexdigest()[:12]
+    return (
+        get_platform_app_dir(
+            platform_name=platform_name,
+            environment=environment,
+            home=home,
+        )
+        / "runtime"
+        / f"{safe_name}-{name_digest}.lock"
+    )
 
 
 class InstanceLock(Protocol):
@@ -135,4 +160,5 @@ __all__ = [
     "InstanceLock",
     "SingleInstanceGuard",
     "create_instance_lock",
+    "get_instance_lock_path",
 ]

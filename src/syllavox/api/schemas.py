@@ -30,6 +30,9 @@ class SpeakRequest(BaseModel):
     )
     requestId: str | None = Field(
         default=None,
+        min_length=1,
+        max_length=128,
+        pattern=r"^[^\x00-\x1f\x7f]+$",
         description="Optional client-provided request identifier.",
     )
 

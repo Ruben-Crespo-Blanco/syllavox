@@ -1,5 +1,34 @@
 # Changelog
 
+## [1.0.0] - 2026-09-03
+
+### Added
+
+- A non-modal Quick setup flow with sample playback and shortcut guidance.
+- Operating-system voices as a zero-download fallback beside the default Piper
+  workflow when the platform provider is available.
+- Locale-aware recommended voice selection in the offline catalog.
+- Sentence/paragraph navigation, replay, automatic continuation, persistent
+  local editor position, and synchronized active-unit highlighting.
+- Accessible names and descriptions for primary setup, voice, editor,
+  navigation, state, and feedback controls.
+- Chromium and Firefox store-submission packages with SHA-256 files and CI
+  artifacts.
+- Product positioning, support-tier, accessibility, research, and release
+  baseline documentation.
+- A persistent **Run setup again…** action for revisiting onboarding without
+  replacing saved reading content.
+
+### Changed
+
+- Speech-engine and maximum request-length controls now live under Advanced
+  settings.
+- The browser extension no longer requests page-wide, tab, or scripting
+  permissions; it uses only the user-invoked context-menu selection.
+- Windows portable and Linux packaging now emit SHA-256 files.
+- System voices are explicitly read-only in voice management, including when
+  they are presented alongside downloadable voices.
+
 ## [0.7.0] - 2026-09-02
 
 Syllavox 0.7.0 adds the Ubuntu-first Linux adaptation in the shared

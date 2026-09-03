@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
+import os
 import sys
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QProcess, Qt
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QIcon, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
@@ -35,6 +36,7 @@ from syllavox.hotkey.manager import HotkeyStatus
 from syllavox.local_data import clear_local_data
 from syllavox.logging_config import configure_logging, get_logger, shutdown_logging
 from syllavox.qt_bridge import QtCallbackRelay
+from syllavox.reading_session import ReadingSession
 from syllavox.request_ids import new_request_id
 from syllavox.settings import SettingsManager
 from syllavox.speech.controller import SpeechController
@@ -48,11 +50,14 @@ from syllavox.tts.catalog import (
 )
 from syllavox.tts.backend_registry import backend_display_name
 from syllavox.tts.errors import BackendUnavailableError, TTSBackendError
+from syllavox.tts.fallback import SystemVoiceFallbackBackend
 from syllavox.tts.manager import TTSBackendManager
 from syllavox.tts.paths import get_piper_models_dir, get_sherpa_onnx_models_dir
 from syllavox.tray.voice_catalog_dialog import VoiceCatalogDialog
 from syllavox.tray.voice_management_dialog import VoiceManagementDialog
 from syllavox.tray.window_widgets import (
+    OnboardingPanel,
+    SAMPLE_TEXT,
     SettingsPanel,
     SpeechEditorWidget,
     VoiceSelectorWidget,
@@ -110,9 +115,17 @@ class MainWindow(QMainWindow):
         self._voices: list[VoiceInfo] = []
         self._hotkey_reconfigure_callback: Callable[[str], None] | None = None
         self._startup_reconfigure_callback: Callable[[bool], None] | None = None
+        self._restart_command: tuple[str, list[str]] | None = None
+        self._reading_session: ReadingSession | None = None
+        self._reading_request_id: str | None = None
+        self._continue_reading_after_completion = False
 
         self._state_relay = QtCallbackRelay(self._on_state_changed)
         self._state_manager.add_listener(self._state_relay.dispatch)
+        self._completion_relay = QtCallbackRelay(self._on_playback_finished)
+        self._speech_controller.add_completion_listener(
+            self._completion_relay.dispatch
+        )
 
         self.setWindowTitle(PRODUCT_NAME)
         self._set_window_icon()
@@ -122,13 +135,19 @@ class MainWindow(QMainWindow):
         self._title_label.setAlignment(
             Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter
         )
-        self._subtitle_label = QLabel("Local reading, quietly handled.")
+        self._subtitle_label = QLabel(
+            "Hear any desktop text privately—one shortcut, offline, no account."
+        )
         self._subtitle_label.setObjectName("pageSubtitle")
         self._subtitle_label.setAlignment(Qt.AlignmentFlag.AlignLeft)
         self._state_label = QLabel()
         self._state_label.setObjectName("stateLabel")
+        self._state_label.setAccessibleName("Application state")
         self._hotkey_status_label = QLabel("Hotkey: not initialized")
         self._hotkey_status_label.setObjectName("hotkeyStatus")
+        self._hotkey_status_label.setAccessibleName("Read shortcut status")
+
+        self._onboarding_panel = OnboardingPanel()
 
         self._voice_selector = VoiceSelectorWidget()
         system_voice_mode = bool(
@@ -155,6 +174,10 @@ class MainWindow(QMainWindow):
         self._stop_button = self._speech_editor.stop_button
         self._clear_button = self._speech_editor.clear_button
         self._feedback_label = self._speech_editor.feedback_label
+        self._navigation_mode_combo = self._speech_editor.navigation_mode_combo
+        self._previous_button = self._speech_editor.previous_button
+        self._replay_button = self._speech_editor.replay_button
+        self._next_button = self._speech_editor.next_button
 
         self._settings_panel = SettingsPanel(
             active_backend=backend_manager.backend_name(),
@@ -182,10 +205,13 @@ class MainWindow(QMainWindow):
         self._clear_local_data_button = (
             self._settings_panel.clear_local_data_button
         )
+        self._setup_again_button = self._settings_panel.setup_again_button
         self._local_data_cleanup_requested = False
 
         self._load_settings_into_controls()
         self._load_voices()
+        self._restore_reading_session()
+        self._refresh_onboarding()
         self._connect_ui_signals()
 
         header_layout = QHBoxLayout()
@@ -238,6 +264,7 @@ class MainWindow(QMainWindow):
         scroll_area.setVerticalScrollBarPolicy(
             Qt.ScrollBarPolicy.ScrollBarAsNeeded
         )
+        self._content_scroll_area = scroll_area
 
         scroll_content = QWidget()
         scroll_content.setObjectName("scrollContent")
@@ -257,6 +284,7 @@ class MainWindow(QMainWindow):
         content_layout.setSpacing(12)
         content_layout.addLayout(header_layout)
         content_layout.addLayout(status_layout)
+        content_layout.addWidget(self._onboarding_panel)
         content_layout.addWidget(self._voice_selector)
         content_layout.addWidget(self._speech_editor)
         content_layout.addWidget(self._settings_panel)
@@ -304,6 +332,21 @@ class MainWindow(QMainWindow):
         self._pause_resume_button.clicked.connect(self._pause_or_resume)
         self._stop_button.clicked.connect(self._stop_speaking)
         self._clear_button.clicked.connect(self._clear_text)
+        self._previous_button.clicked.connect(lambda: self._navigate_reading(-1))
+        self._replay_button.clicked.connect(lambda: self._navigate_reading(0))
+        self._next_button.clicked.connect(lambda: self._navigate_reading(1))
+        self._navigation_mode_combo.currentIndexChanged.connect(
+            self._on_navigation_mode_changed
+        )
+        self._onboarding_panel.try_sample_requested.connect(
+            self._try_onboarding_sample
+        )
+        self._onboarding_panel.voice_setup_requested.connect(
+            self._open_onboarding_voice_setup
+        )
+        self._onboarding_panel.finish_requested.connect(
+            self._finish_onboarding
+        )
         self._save_settings_button.clicked.connect(self._save_settings)
         self._settings_panel.hotkey_apply_requested.connect(
             self._save_settings
@@ -314,7 +357,10 @@ class MainWindow(QMainWindow):
         self._settings_panel.clear_local_data_requested.connect(
             self._clear_local_data
         )
-        self._text_edit.textChanged.connect(self._refresh_text_status)
+        self._settings_panel.setup_again_requested.connect(
+            self._run_setup_again
+        )
+        self._text_edit.textChanged.connect(self._on_text_changed)
         self._max_text_length_spinbox.valueChanged.connect(
             self._refresh_text_status
         )
@@ -335,6 +381,11 @@ class MainWindow(QMainWindow):
         """Connect the startup preference to the live platform integration."""
         self._startup_reconfigure_callback = callback
 
+    @property
+    def restart_command(self) -> tuple[str, list[str]] | None:
+        """Return the deferred relaunch command requested by the settings UI."""
+        return self._restart_command
+
     @staticmethod
     def _bundled_icon_path() -> Path:
         return Path(__file__).resolve().parent.parent / "assets" / "tray_icon.png"
@@ -348,6 +399,89 @@ class MainWindow(QMainWindow):
 
     def _load_settings_into_controls(self) -> None:
         self._settings_panel.load_settings(self._settings_manager.settings)
+
+    def _restore_reading_session(self) -> None:
+        """Restore local editor content and its last navigable position."""
+        saved = self._settings_manager.settings.get("reading_session", {})
+        text = saved.get("text", "")
+        mode = saved.get("mode", "sentence")
+        position = saved.get("position", 0)
+        if not isinstance(text, str):
+            text = ""
+        try:
+            position = int(position)
+        except (TypeError, ValueError):
+            position = 0
+        self._text_edit.setPlainText(text)
+        self._reading_session = ReadingSession(
+            text,
+            mode=str(mode),  # type: ignore[arg-type]
+            position=position,
+        )
+        self._refresh_reading_display()
+
+    def _save_reading_session(self) -> None:
+        """Persist the local editor and position without any remote service."""
+        text = self._text_edit.toPlainText()
+        session = self._ensure_reading_session()
+        current = session.current
+        self._settings_manager.settings["reading_session"] = {
+            "text": text,
+            "position": current.start if current is not None else 0,
+            "mode": session.mode,
+        }
+
+    def _refresh_onboarding(self) -> None:
+        onboarding = self._settings_manager.settings.get("onboarding", {})
+        self._onboarding_panel.setVisible(
+            not bool(onboarding.get("completed", False))
+        )
+        self._onboarding_panel.update_status(
+            has_voice=self._selected_voice_id() is not None,
+            hotkey=self._hotkey_edit.hotkey(),
+        )
+
+    def _run_setup_again(self) -> None:
+        """Reopen the non-modal setup guidance without discarding user content."""
+        self._settings_manager.settings.setdefault("onboarding", {})[
+            "completed"
+        ] = False
+        self._refresh_onboarding()
+        self._settings_manager.save()
+        self._content_scroll_area.ensureWidgetVisible(self._onboarding_panel)
+        self._onboarding_panel.try_sample_button.setFocus()
+        self._set_feedback(
+            "Quick setup reopened. Your saved text and voice settings were kept."
+        )
+
+    def _try_onboarding_sample(self) -> None:
+        if self._selected_voice_id() is None:
+            self._set_feedback("Choose a voice before trying the sample.")
+            return
+        self._text_edit.setPlainText(SAMPLE_TEXT)
+        self._reading_session = ReadingSession(SAMPLE_TEXT)
+        self._refresh_reading_display()
+        self._speak_current_segment(continue_reading=True)
+
+    def _open_onboarding_voice_setup(self) -> None:
+        if getattr(self._voice_catalog, "is_system_voice_catalog", False):
+            self._open_voice_management()
+            return
+        self._open_voice_catalog()
+
+    def _finish_onboarding(self) -> None:
+        if self._selected_voice_id() is None:
+            self._set_feedback("Choose a working voice before finishing setup.")
+            return
+        self._settings_manager.settings.setdefault("onboarding", {})[
+            "completed"
+        ] = True
+        self._save_reading_session()
+        self._settings_manager.save()
+        self._refresh_onboarding()
+        self._set_feedback(
+            f"Setup complete. Copy text anywhere and press {self._hotkey_edit.hotkey()}."
+        )
 
     def _load_voices(self) -> None:
         """Populate the selector, leaving the window usable if Piper is down."""
@@ -364,12 +498,14 @@ class MainWindow(QMainWindow):
                 "Could not load voices for the main window: %s",
                 exc,
             )
+            self._refresh_onboarding()
             return
         except Exception:
             self._voices = []
             self._voice_selector.set_no_voices()
             self._set_feedback("Voice backend unavailable.")
             self._logger.exception("Unexpected error while loading voices")
+            self._refresh_onboarding()
             return
 
         self._voices = list(voices)
@@ -377,6 +513,7 @@ class MainWindow(QMainWindow):
         if not voices:
             self._voice_selector.set_no_voices()
             self._set_feedback("No voices are available.")
+            self._refresh_onboarding()
             return
 
         selected_voice_id = self._voice_selector.set_voices(
@@ -393,10 +530,12 @@ class MainWindow(QMainWindow):
             )
 
         self._set_shared_default_voice()
+        self._refresh_onboarding()
 
     def _on_voice_changed(self, voice_id: str) -> None:
         del voice_id
         self._set_shared_default_voice()
+        self._refresh_onboarding()
         self._refresh_controls()
 
     def _set_shared_default_voice(self) -> None:
@@ -432,6 +571,14 @@ class MainWindow(QMainWindow):
             self._set_feedback(f"Voice backend unavailable: {exc}")
             voices = []
 
+        active_backend = self._backend_manager.active_backend
+        if isinstance(active_backend, SystemVoiceFallbackBackend):
+            voices = [
+                voice
+                for voice in voices
+                if active_backend.is_primary_voice(voice.voice_id)
+            ]
+
         dialog = VoiceManagementDialog(
             catalog=self._voice_catalog,
             backend_manager=self._backend_manager,
@@ -447,6 +594,7 @@ class MainWindow(QMainWindow):
     def _on_voice_installed(self, voice_id: str) -> None:
         self._load_voices()
         self._set_feedback(f"Installed voice {voice_id}.")
+        self._refresh_onboarding()
 
     def _on_voice_resources_changed(self) -> None:
         self._load_voices()
@@ -506,6 +654,27 @@ class MainWindow(QMainWindow):
         del snapshot
         self.refresh_state_display()
 
+    def _on_playback_finished(self, request_id: str) -> None:
+        """Advance an in-window reading session after natural completion."""
+        if request_id != self._reading_request_id:
+            return
+        self._reading_request_id = None
+        session = self._reading_session
+        if (
+            self._continue_reading_after_completion
+            and session is not None
+            and session.can_move_next
+        ):
+            session.move(1)
+            self._refresh_reading_display()
+            self._speak_current_segment(continue_reading=True)
+            return
+        self._continue_reading_after_completion = False
+        self._save_reading_session()
+        self._settings_manager.save()
+        self._set_feedback("Reading complete.")
+        self.refresh_state_display()
+
     def update_hotkey_status(self, status: HotkeyStatus) -> None:
         """Update the hotkey status shown in the main window."""
         if not status.enabled:
@@ -523,6 +692,86 @@ class MainWindow(QMainWindow):
         self._speech_editor.update_character_count(maximum)
         self._refresh_controls()
 
+    def _on_text_changed(self) -> None:
+        if self._state_manager.state in {AppState.SPEAKING, AppState.PAUSED}:
+            self._continue_reading_after_completion = False
+            self._reading_request_id = None
+            try:
+                self._speech_controller.stop()
+            except Exception as exc:
+                self._logger.warning("Could not stop playback after an edit: %s", exc)
+        text = self._text_edit.toPlainText()
+        mode = self._navigation_mode_combo.currentData() or "sentence"
+        self._reading_session = ReadingSession(
+            text,
+            mode=str(mode),  # type: ignore[arg-type]
+            position=self._text_edit.textCursor().position(),
+        )
+        self._refresh_text_status()
+
+    def _ensure_reading_session(self) -> ReadingSession:
+        text = self._text_edit.toPlainText()
+        mode = str(self._navigation_mode_combo.currentData() or "sentence")
+        if (
+            self._reading_session is None
+            or self._reading_session.text != text
+        ):
+            self._reading_session = ReadingSession(
+                text,
+                mode=mode,  # type: ignore[arg-type]
+                position=self._text_edit.textCursor().position(),
+            )
+        elif self._reading_session.mode != mode:
+            self._reading_session.set_mode(mode)  # type: ignore[arg-type]
+        return self._reading_session
+
+    def _refresh_reading_display(self) -> None:
+        session = self._ensure_reading_session()
+        current = session.current
+        has_voice = self._selected_voice_id() is not None
+        self._speech_editor.set_navigation_state(
+            mode=session.mode,
+            index=session.index,
+            count=session.count,
+            previous_enabled=has_voice and session.can_move_previous,
+            next_enabled=has_voice and session.can_move_next,
+            replay_enabled=has_voice and current is not None,
+        )
+        self._speech_editor.highlight_range(
+            current.start if current is not None else None,
+            current.end if current is not None else None,
+        )
+
+    def _on_navigation_mode_changed(self, index: int) -> None:
+        del index
+        session = self._ensure_reading_session()
+        mode = str(self._navigation_mode_combo.currentData() or "sentence")
+        if self._state_manager.state in {AppState.SPEAKING, AppState.PAUSED}:
+            self._continue_reading_after_completion = False
+            self._reading_request_id = None
+            self._speech_controller.stop()
+        session.set_mode(mode)  # type: ignore[arg-type]
+        self._refresh_reading_display()
+        self._save_reading_session()
+        self._settings_manager.save()
+
+    def _navigate_reading(self, offset: int) -> None:
+        session = self._ensure_reading_session()
+        if session.current is None:
+            self._set_feedback("Enter text before using reading navigation.")
+            return
+        if self._state_manager.state in {AppState.SPEAKING, AppState.PAUSED}:
+            self._continue_reading_after_completion = False
+            self._reading_request_id = None
+            try:
+                self._speech_controller.stop()
+            except Exception as exc:
+                self._set_feedback(f"Could not change reading position: {exc}")
+                return
+        session.move(offset)
+        self._refresh_reading_display()
+        self._speak_current_segment(continue_reading=True)
+
     def _refresh_controls(self) -> None:
         text = self._text_edit.toPlainText()
         formatted_text = normalize_for_speech(text)
@@ -530,13 +779,20 @@ class MainWindow(QMainWindow):
         within_limit = (
             len(formatted_text) <= self._max_text_length_spinbox.value()
         )
+        session = self._ensure_reading_session()
+        current_segment = session.current
+        current_within_limit = (
+            current_segment is not None
+            and len(normalize_for_speech(current_segment.text))
+            <= self._max_text_length_spinbox.value()
+        )
         has_voice = (
             self._voice_combo.isEnabled()
             and self._selected_voice_id() is not None
         )
         can_speak = (
             has_text
-            and within_limit
+            and current_within_limit
             and has_voice
             and self._state_manager.state != AppState.STARTING
         )
@@ -554,12 +810,18 @@ class MainWindow(QMainWindow):
 
         self._speech_editor.set_playback_controls(
             speak_enabled=can_speak,
-            export_enabled=can_speak,
+            export_enabled=(
+                has_text
+                and within_limit
+                and has_voice
+                and self._state_manager.state != AppState.STARTING
+            ),
             pause_text=pause_text,
             pause_enabled=pause_enabled,
             stop_enabled=state in {AppState.SPEAKING, AppState.PAUSED},
             clear_enabled=bool(text),
         )
+        self._refresh_reading_display()
 
     def _on_volume_changed(self, value: int) -> None:
         volume = value / 100
@@ -596,12 +858,23 @@ class MainWindow(QMainWindow):
         self.refresh_state_display()
 
     def _speak_text(self) -> None:
-        text = self._text_edit.toPlainText()
+        session = self._ensure_reading_session()
+        if session.current is None:
+            self._set_feedback("Enter text before starting speech.")
+            return
+        self._speak_current_segment(continue_reading=True)
+
+    def _speak_current_segment(self, *, continue_reading: bool) -> None:
+        session = self._ensure_reading_session()
+        segment = session.current
+        if segment is None:
+            self._set_feedback("Enter text before starting speech.")
+            return
         request_id = new_request_id("ui")
 
         try:
             result = self._speech_controller.speak(
-                text=text,
+                text=segment.text,
                 request_id=request_id,
                 voice_id=self._selected_voice_id(),
             )
@@ -614,7 +887,16 @@ class MainWindow(QMainWindow):
             self.refresh_state_display()
             return
 
-        self._set_feedback(f"Speaking with {result.voice_id}.")
+        self._reading_request_id = result.request_id
+        self._continue_reading_after_completion = continue_reading
+        self._refresh_reading_display()
+        self._save_reading_session()
+        self._settings_manager.save()
+        unit = "sentence" if session.mode == "sentence" else "paragraph"
+        self._set_feedback(
+            f"Reading {unit} {session.index + 1} of {session.count} "
+            f"with {result.voice_id}."
+        )
         self.refresh_state_display()
 
     def _export_wav(self) -> None:
@@ -653,6 +935,8 @@ class MainWindow(QMainWindow):
         self._set_feedback(f"WAV exported to {result.audio_path}.")
 
     def _stop_speaking(self) -> None:
+        self._continue_reading_after_completion = False
+        self._reading_request_id = None
         try:
             stopped = self._speech_controller.stop()
         except Exception as exc:
@@ -667,7 +951,15 @@ class MainWindow(QMainWindow):
         self.refresh_state_display()
 
     def _clear_text(self) -> None:
+        if self._state_manager.state in {AppState.SPEAKING, AppState.PAUSED}:
+            self._stop_speaking()
         self._text_edit.clear()
+        self._reading_session = ReadingSession(
+            "",
+            mode=str(self._navigation_mode_combo.currentData() or "sentence"),  # type: ignore[arg-type]
+        )
+        self._save_reading_session()
+        self._settings_manager.save()
         self._set_feedback("")
 
     def _set_feedback(self, message: str) -> None:
@@ -719,6 +1011,7 @@ class MainWindow(QMainWindow):
                 return False
 
         self._write_controls_to_settings()
+        self._save_reading_session()
         self._save_window_size_if_enabled()
         self._settings_manager.save()
         backend = self._settings_manager.settings.get("tts", {}).get(
@@ -751,23 +1044,13 @@ class MainWindow(QMainWindow):
                 return
 
         if getattr(sys, "frozen", False):
-            executable = sys.executable
+            executable = os.environ.get("APPIMAGE") or sys.executable
             arguments = list(sys.argv[1:])
         else:
             executable = sys.executable
             arguments = ["-m", "syllavox.main", *sys.argv[1:]]
 
-        if not QProcess.startDetached(executable, arguments):
-            self._set_feedback(
-                "Settings saved, but Syllavox could not start the restart."
-            )
-            self._logger.error(
-                "Could not start replacement Syllavox process: %s %s",
-                executable,
-                arguments,
-            )
-            return
-
+        self._restart_command = (executable, arguments)
         self._set_feedback("Restarting Syllavox to apply the speech engine…")
         QApplication.instance().quit()
 
@@ -837,6 +1120,7 @@ class MainWindow(QMainWindow):
             return
 
         self._write_controls_to_settings()
+        self._save_reading_session()
         self._save_window_size_if_enabled()
         self._settings_manager.save()
         self._logger.info("Window closed; settings saved")

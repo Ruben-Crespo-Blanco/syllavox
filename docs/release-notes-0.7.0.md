@@ -27,7 +27,7 @@ For development:
 
 ```bash
 sudo apt update
-sudo apt install espeak-ng python3-venv dpkg-dev
+sudo apt install espeak-ng python3-venv dpkg-dev desktop-file-utils
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev,packaging,linux]"
@@ -66,5 +66,6 @@ Ubuntu machine or CI runner with a graphical session.
 ## Scope
 
 Piper remains the default backend, and the Windows and macOS paths remain in
-the same source tree. Reading sessions and the accessibility-first reading
-interface continue to be deferred until after 1.0.0.
+the same source tree. The v0.7.0 release itself does not include reading
+sessions. Those features are implemented in the later post-v0.7 development
+tree and must not be attributed to the published v0.7 artifact.

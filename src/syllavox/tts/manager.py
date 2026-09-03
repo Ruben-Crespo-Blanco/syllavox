@@ -7,6 +7,10 @@ directly depending on a specific backend implementatio.
 
 from __future__ import annotations
 
+import threading
+from functools import wraps
+from typing import Any, Callable, TypeVar
+
 from syllavox.constants import DEFAULT_MAX_TEXT_LENGTH
 from syllavox.tts.base import (
     BackendHealth,
@@ -22,6 +26,26 @@ from syllavox.tts.errors import (
     TTSBackendError,
     VoiceNotFoundError,
 )
+
+
+_ReturnT = TypeVar("_ReturnT")
+
+
+def _with_backend_lock(
+    method: Callable[..., _ReturnT],
+) -> Callable[..., _ReturnT]:
+    """Serialize access to backend implementations and their model caches."""
+
+    @wraps(method)
+    def synchronized(
+        self: "TTSBackendManager",
+        *args: Any,
+        **kwargs: Any,
+    ) -> _ReturnT:
+        with self._backend_lock:
+            return method(self, *args, **kwargs)
+
+    return synchronized
 
 
 class TTSBackendManager:
@@ -46,8 +70,10 @@ class TTSBackendManager:
         self._backend = backend
         self._max_text_length = max_text_length
         self._default_voice_id = default_voice_id
+        self._backend_lock = threading.RLock()
 
     @property
+    @_with_backend_lock
     def default_voice_id(self) -> str | None:
         """Return the shared voice used when a request omits a voice ID."""
         return self._default_voice_id
@@ -57,10 +83,12 @@ class TTSBackendManager:
         """Return the active backend for capability-aware UI composition."""
         return self._backend
 
+    @_with_backend_lock
     def set_default_voice_id(self, voice_id: str | None) -> None:
         """Set the shared default voice for UI, hotkey, and API requests."""
         self._default_voice_id = voice_id
 
+    @_with_backend_lock
     def load_voice(self, voice_id: str) -> None:
         """Load a voice into the active backend's memory cache."""
         self._ensure_backend_healthy()
@@ -74,6 +102,7 @@ class TTSBackendManager:
 
         memory_backend.load_voice(voice_id)
 
+    @_with_backend_lock
     def unload_voice(self, voice_id: str) -> None:
         """Unload a voice from memory while keeping its files on disk."""
         memory_backend = self._voice_memory_backend()
@@ -84,6 +113,7 @@ class TTSBackendManager:
 
         memory_backend.unload_voice(voice_id)
 
+    @_with_backend_lock
     def is_voice_loaded(self, voice_id: str) -> bool:
         """Return whether a voice is currently loaded in memory."""
         memory_backend = self._voice_memory_backend()
@@ -92,6 +122,7 @@ class TTSBackendManager:
 
         return bool(memory_backend.is_voice_loaded(voice_id))
 
+    @_with_backend_lock
     def loaded_voice_ids(self) -> list[str]:
         """Return loaded voice IDs when supported by the active backend."""
         memory_backend = self._voice_memory_backend()
@@ -100,6 +131,7 @@ class TTSBackendManager:
 
         return list(memory_backend.loaded_voice_ids())
 
+    @_with_backend_lock
     def shutdown(self) -> None:
         """Release all model resources owned by the active backend."""
         backend_shutdown = getattr(self._backend, "shutdown", None)
@@ -114,12 +146,14 @@ class TTSBackendManager:
         for voice_id in list(memory_backend.loaded_voice_ids()):
             memory_backend.unload_voice(voice_id)
 
+    @_with_backend_lock
     def backend_name(self) -> str:
         """
         Return the active backend name.
         """
         return self._backend.backend_name()
 
+    @_with_backend_lock
     def health(self) -> BackendHealth:
         """
         Return backend health information.
@@ -136,6 +170,7 @@ class TTSBackendManager:
                 details=f"Health check failed: {exc}",
             )
 
+    @_with_backend_lock
     def list_voices(self) -> list[VoiceInfo]:
         """
         Return available voices.
@@ -147,6 +182,7 @@ class TTSBackendManager:
 
         return self._backend.list_voices()
 
+    @_with_backend_lock
     def get_default_voice(self) -> VoiceInfo:
         """
         Return the default voice.
@@ -178,6 +214,7 @@ class TTSBackendManager:
 
         return voices[0]
 
+    @_with_backend_lock
     def synthesize(
         self,
         request: SynthesisRequest,
@@ -205,6 +242,7 @@ class TTSBackendManager:
                 voice_id=voice_id,
                 retention=request.retention,
                 output_path=request.output_path,
+                artifact_id=request.artifact_id,
             )
 
         self._ensure_voice_exists(voice_id)

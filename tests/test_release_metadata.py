@@ -25,7 +25,7 @@ def _project_version_from_pyproject() -> str:
 
 
 def test_release_version_is_consistent_across_project_metadata() -> None:
-    assert PROJECT_VERSION == "0.7.0"
+    assert PROJECT_VERSION == "1.0.0"
     assert _project_version_from_pyproject() == PROJECT_VERSION
 
     for manifest_name in ("manifest.json", "manifest.firefox.json"):
@@ -139,6 +139,12 @@ def test_linux_packaging_metadata_and_dependencies_are_present() -> None:
 
     assert "dpkg-deb --build" in linux_build_script
     assert "appimagetool" in linux_build_script
+    assert "desktop-file-validate" in linux_build_script
+    assert "required command is missing: sha256sum" in linux_build_script
+    assert 'sha256sum "${DEB_PATH}"' in linux_build_script
+    assert '"${APPDIR}/com.ruben-crespo-blanco.syllavox.desktop"' in linux_build_script
+    assert '"${APPDIR}/com.ruben-crespo-blanco.syllavox.png"' in linux_build_script
+    assert '"${APPDIR}/.DirIcon"' in linux_build_script
     assert "com.ruben-crespo-blanco.syllavox" in linux_desktop
     assert "com.ruben-crespo-blanco.syllavox" in linux_metainfo
     assert any(
@@ -164,3 +170,24 @@ def test_windows_installer_is_per_user_and_uses_the_portable_output() -> None:
     assert "-IncludeSherpa" in build_script
     assert "INNO_SETUP_COMPILER" in build_script
     assert "Get-FileHash" in build_script
+
+
+def test_release_packaging_emits_checksums_and_minimal_extension_archives() -> None:
+    portable_script = (
+        PROJECT_ROOT / "packaging" / "build_portable.ps1"
+    ).read_text(encoding="utf-8")
+    chromium_script = (
+        PROJECT_ROOT / "extension" / "package_chromium.ps1"
+    ).read_text(encoding="utf-8")
+    firefox_script = (
+        PROJECT_ROOT / "extension" / "package_firefox.ps1"
+    ).read_text(encoding="utf-8")
+
+    assert "Get-FileHash" in portable_script
+    assert '$hashPath = "$zipPath.sha256"' in portable_script
+
+    for script in (chromium_script, firefox_script):
+        assert "Get-FileHash" in script
+        assert "background.js" in script
+        assert '"icons"' in script
+        assert "content.js" not in script

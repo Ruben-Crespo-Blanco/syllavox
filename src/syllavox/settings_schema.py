@@ -26,6 +26,9 @@ def get_default_settings() -> dict[str, Any]:
             "start_minimized_to_tray": True,
             "run_on_startup": False,
         },
+        "onboarding": {
+            "completed": False,
+        },
         "hotkey": {
             "enabled": True,
             "key": DEFAULT_READ_HOTKEY,
@@ -39,6 +42,11 @@ def get_default_settings() -> dict[str, Any]:
         "playback": {
             "volume": 1.0,
             "rate": 1.0,
+        },
+        "reading_session": {
+            "text": "",
+            "position": 0,
+            "mode": "sentence",
         },
     }
 

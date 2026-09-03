@@ -834,9 +834,9 @@ class SherpaOnnxBackend(TTSBackend, VoiceMemoryBackend):
         if request.output_path is not None:
             audio_path = Path(request.output_path)
         elif request.retention == AudioRetention.RETAIN:
-            audio_path = get_retained_audio_path(request.request_id)
+            audio_path = get_retained_audio_path(request.artifact_id)
         else:
-            audio_path = get_request_audio_path(request.request_id)
+            audio_path = get_request_audio_path(request.artifact_id)
 
         audio_path.parent.mkdir(parents=True, exist_ok=True)
         if request.output_path is None:

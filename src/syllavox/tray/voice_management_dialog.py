@@ -137,15 +137,22 @@ class VoiceManagementDialog(BackgroundWorkerMixin, QDialog):
         }
 
         can_modify = voice_id is not None and not busy and not active_speech
+        system_owned = (
+            voice_id is not None and self._is_system_owned_voice(voice_id)
+        )
         voice_loaded = (
             self._backend_manager.is_voice_loaded(voice_id)
-            if can_modify
+            if can_modify and not system_owned
             else False
         )
         self._view.set_controls(
-            load_enabled=can_modify and not voice_loaded,
-            unload_enabled=can_modify and voice_loaded,
-            delete_enabled=can_modify and self._supports_voice_deletion,
+            load_enabled=can_modify and not system_owned and not voice_loaded,
+            unload_enabled=can_modify and not system_owned and voice_loaded,
+            delete_enabled=(
+                can_modify
+                and not system_owned
+                and self._supports_voice_deletion
+            ),
             close_enabled=not busy,
         )
 
@@ -214,6 +221,11 @@ class VoiceManagementDialog(BackgroundWorkerMixin, QDialog):
             return
 
         voice_id = self._selected_voice_id()
+        if voice_id is not None and self._is_system_owned_voice(voice_id):
+            self._set_status(
+                "System voices are managed by the operating system and cannot be deleted."
+            )
+            return
         if not self._can_start_operation(voice_id):
             return
 
@@ -306,6 +318,12 @@ class VoiceManagementDialog(BackgroundWorkerMixin, QDialog):
         if voice_id is None:
             return False
 
+        if self._is_system_owned_voice(voice_id):
+            self._set_status(
+                "System voices are managed by the operating system and cannot be changed here."
+            )
+            return False
+
         if self._state_manager.state in {AppState.SPEAKING, AppState.PAUSED}:
             self._set_status(
                 "Wait until playback has finished before changing voice files."
@@ -313,6 +331,15 @@ class VoiceManagementDialog(BackgroundWorkerMixin, QDialog):
             return False
 
         return not self._is_worker_running()
+
+    def _is_system_owned_voice(self, voice_id: str) -> bool:
+        """Return whether the active backend identifies this voice as system-owned."""
+        owner_check = getattr(
+            self._backend_manager.active_backend,
+            "is_system_voice",
+            None,
+        )
+        return bool(callable(owner_check) and owner_check(voice_id))
 
     def _start_operation(
         self,

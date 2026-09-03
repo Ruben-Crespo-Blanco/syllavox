@@ -94,3 +94,80 @@ def test_voice_storage_install_failure_leaves_no_partial_pair(
     assert not (tmp_path / f"{entry.voice_id}.onnx").exists()
     assert not (tmp_path / f"{entry.voice_id}.onnx.json").exists()
     assert list(tmp_path.iterdir()) == []
+
+
+def test_voice_storage_rolls_back_when_second_pair_replace_fails(
+    tmp_path: Path,
+) -> None:
+    entry = VoiceCatalogEntry(
+        voice_id="en_US-lessac-medium",
+        name="lessac",
+        language_code="en_US",
+        language_name="English",
+        country_name="United States",
+        quality="medium",
+        num_speakers=1,
+        model_url="https://example.test/voice.onnx",
+        config_url="https://example.test/voice.onnx.json",
+    )
+    model_path = tmp_path / f"{entry.voice_id}.onnx"
+    config_path = tmp_path / f"{entry.voice_id}.onnx.json"
+    model_path.write_bytes(b"old model")
+    config_path.write_bytes(b"old config")
+    downloads = {
+        entry.model_url: b"new model",
+        entry.config_url: b"new config",
+    }
+
+    class FailingStorage(PiperVoiceStorage):
+        replace_count = 0
+
+        def _replace_installed_file(self, source: Path, destination: Path) -> None:
+            self.replace_count += 1
+            if self.replace_count == 2:
+                raise OSError("simulated config replace failure")
+            source.replace(destination)
+
+    storage = FailingStorage(
+        models_dir=tmp_path,
+        urlopen_fn=lambda url, timeout: FakeResponse(downloads[url]),
+        timeout_seconds=30.0,
+    )
+
+    with pytest.raises(VoiceCatalogError, match="config replace failure"):
+        storage.install_voice(entry)
+
+    assert model_path.read_bytes() == b"old model"
+    assert config_path.read_bytes() == b"old config"
+
+
+def test_voice_storage_recovers_prepared_transaction_after_restart(
+    tmp_path: Path,
+) -> None:
+    voice_id = "en_US-lessac-medium"
+    model_path = tmp_path / f"{voice_id}.onnx"
+    config_path = tmp_path / f"{voice_id}.onnx.json"
+    model_path.write_bytes(b"old model")
+    config_path.write_bytes(b"old config")
+    storage = PiperVoiceStorage(
+        models_dir=tmp_path,
+        urlopen_fn=lambda url, timeout: FakeResponse(b"unused"),
+        timeout_seconds=30.0,
+    )
+    storage._begin_install_transaction(
+        voice_id,
+        (model_path, config_path),
+    )
+    replacement = tmp_path / ".replacement.onnx"
+    replacement.write_bytes(b"new model")
+    storage._replace_installed_file(replacement, model_path)
+
+    PiperVoiceStorage(
+        models_dir=tmp_path,
+        urlopen_fn=lambda url, timeout: FakeResponse(b"unused"),
+        timeout_seconds=30.0,
+    )
+
+    assert model_path.read_bytes() == b"old model"
+    assert config_path.read_bytes() == b"old config"
+    assert not (tmp_path / ".install-transactions").exists()

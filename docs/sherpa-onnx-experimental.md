@@ -138,9 +138,10 @@ not every speaker, text condition, or long-form workload.
 The initial Amy-low comparison showed Sherpa's native writer producing warm
 audio in roughly 0.143 seconds with two threads for about 3.024 seconds of
 audio; this is a machine-specific baseline, not a product guarantee. Sherpa
-does not provide exact word-level timing for Syllavox, so reading sessions and
-accessibility-first synchronized highlighting remain deferred until after
-1.0.0.
+does not provide exact word-level timing for Syllavox. Reading sessions and
+accessibility-first synchronized highlighting are available in the v1.0.0
+desktop workflow at sentence/paragraph granularity; exact word-level timing
+and highlighting inside third-party applications remain out of scope.
 
 ## Return to Piper
 

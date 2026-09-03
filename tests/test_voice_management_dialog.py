@@ -14,6 +14,7 @@ from syllavox.state import StateManager
 from syllavox.tray.voice_management_dialog import VoiceManagementDialog
 from syllavox.tts.base import VoiceInfo
 from syllavox.tts.catalog import PiperVoiceCatalog
+from syllavox.tts.fallback import SystemVoiceFallbackBackend
 from syllavox.tts.manager import TTSBackendManager
 
 
@@ -104,4 +105,45 @@ def test_dialog_deletes_voice_files_through_background_operation(
     assert not backend_manager.is_voice_loaded(voice.voice_id)
     assert dialog._status_label.text() == "Voice resources updated."
 
+    dialog.close()
+
+
+def test_dialog_never_allows_deleting_a_system_owned_voice(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    local_voice = VoiceInfo(
+        voice_id="local-voice",
+        name="Local",
+        language="en",
+    )
+    system_voice = VoiceInfo(
+        voice_id="system-voice",
+        name="System",
+        language="en",
+    )
+    primary = FakeBackend(voices=[local_voice])
+    system = FakeBackend(voices=[system_voice])
+    backend = SystemVoiceFallbackBackend(primary, system)
+    backend_manager = TTSBackendManager(backend=backend)
+    state_manager = StateManager()
+    state_manager.mark_ready()
+    dialog = VoiceManagementDialog(
+        catalog=PiperVoiceCatalog(tmp_path),
+        backend_manager=backend_manager,
+        state_manager=state_manager,
+        voices=[system_voice],
+        current_voice_callback=lambda: system_voice.voice_id,
+        on_voices_changed=lambda: None,
+        logger=logging.getLogger("tests.voice_management_dialog.system"),
+    )
+    monkeypatch.setattr(
+        QMessageBox,
+        "question",
+        lambda *args, **kwargs: pytest.fail("system voice should not prompt for deletion"),
+    )
+
+    assert dialog._delete_button.isEnabled() is False
+    dialog._delete_selected()
+    assert "managed by the operating system" in dialog._status_label.text()
     dialog.close()

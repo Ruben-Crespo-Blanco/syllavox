@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from pathlib import Path
 
 import pytest
@@ -49,6 +50,24 @@ def test_natural_completion_returns_application_to_ready(
 
     assert state_manager.state == AppState.READY
     assert controller.active_request_id is None
+
+
+def test_natural_completion_notifies_registered_listeners(
+    tmp_path: Path,
+) -> None:
+    controller, state_manager, audio_player, _ = make_controller(tmp_path)
+    completed: list[str] = []
+    listener = completed.append
+    controller.add_completion_listener(listener)
+    audio_player.set_finished_callback(controller.handle_playback_finished)
+
+    controller.speak("Hello", "request-complete")
+    audio_player.simulate_finished("request-complete")
+
+    assert state_manager.state == AppState.READY
+    assert completed == ["request-complete"]
+
+    controller.remove_completion_listener(listener)
 
 
 def test_speech_controller_strips_only_outer_whitespace(
@@ -191,3 +210,61 @@ def test_playback_failure_clears_active_request(
 
     assert state_manager.state == AppState.ERROR
     assert controller.active_request_id is None
+
+
+def test_concurrent_speak_requests_are_serialized_and_newest_wins(
+    tmp_path: Path,
+) -> None:
+    audio_path = tmp_path / "speech.wav"
+    audio_path.write_bytes(b"fake wav")
+    first_started = threading.Event()
+    release_first = threading.Event()
+    second_entered = threading.Event()
+    second_finished = threading.Event()
+
+    class BlockingBackend(FakeBackend):
+        def synthesize(self, request):
+            if request.request_id == "request-1":
+                first_started.set()
+                assert release_first.wait(timeout=2.0)
+            return super().synthesize(request)
+
+    state_manager = StateManager()
+    state_manager.mark_ready()
+    backend = BlockingBackend(audio_path=audio_path)
+    audio_player = FakeAudioPlayer()
+    controller = SpeechController(
+        state_manager=state_manager,
+        backend_manager=TTSBackendManager(backend=backend),
+        audio_player=audio_player,
+        logger=logging.getLogger("tests.speech_controller.concurrent"),
+    )
+
+    first = threading.Thread(
+        target=lambda: controller.speak("First", "request-1")
+    )
+
+    def speak_second() -> None:
+        second_entered.set()
+        controller.speak("Second", "request-2")
+        second_finished.set()
+
+    second = threading.Thread(target=speak_second)
+    first.start()
+    assert first_started.wait(timeout=2.0)
+    second.start()
+    assert second_entered.wait(timeout=2.0)
+    assert not second_finished.wait(timeout=0.1)
+
+    release_first.set()
+    first.join(timeout=2.0)
+    second.join(timeout=2.0)
+
+    assert not first.is_alive()
+    assert not second.is_alive()
+    assert [request.request_id for request in backend.synthesis_calls] == [
+        "request-1",
+        "request-2",
+    ]
+    assert audio_player.play_calls[-1][1] == "request-2"
+    assert controller.active_request_id == "request-2"

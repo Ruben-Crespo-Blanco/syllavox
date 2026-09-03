@@ -1,6 +1,9 @@
 import json
 from pathlib import Path
 
+import pytest
+
+import syllavox.settings as settings_module
 from syllavox.constants import CURRENT_CONFIG_SCHEMA_VERSION, DEFAULT_MAX_TEXT_LENGTH
 from syllavox.settings import SettingsManager, get_default_settings
 
@@ -24,6 +27,12 @@ def test_first_run_default_creation(monkeypatch, tmp_path: Path) -> None:
 
     assert saved == get_default_settings()
     assert result.settings == get_default_settings()
+    assert result.settings["onboarding"]["completed"] is False
+    assert result.settings["reading_session"] == {
+        "text": "",
+        "position": 0,
+        "mode": "sentence",
+    }
 
 
 def test_successful_save_and_reload(monkeypatch, tmp_path: Path) -> None:
@@ -154,3 +163,27 @@ def test_non_dict_json_recovery(monkeypatch, tmp_path: Path) -> None:
     assert result.backup_path is not None
     assert result.backup_path.exists()
     assert result.settings == get_default_settings()
+
+
+def test_failed_save_keeps_the_previous_settings_file(
+    monkeypatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("LOCALAPPDATA", str(tmp_path))
+    settings_path = tmp_path / "settings.json"
+    manager = SettingsManager(settings_path=settings_path)
+    manager.load()
+    original_contents = settings_path.read_text(encoding="utf-8")
+
+    def fail_dump(*args, **kwargs) -> None:
+        del args, kwargs
+        raise OSError("simulated interrupted write")
+
+    monkeypatch.setattr(settings_module.json, "dump", fail_dump)
+    manager.settings["window"]["width"] = 1234
+
+    with pytest.raises(OSError, match="interrupted write"):
+        manager.save()
+
+    assert settings_path.read_text(encoding="utf-8") == original_contents
+    assert list(tmp_path.glob(".settings.json.*.tmp")) == []

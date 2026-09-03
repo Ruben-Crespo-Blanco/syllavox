@@ -12,6 +12,7 @@ from __future__ import annotations
 import asyncio
 import inspect
 import os
+import secrets
 import sys
 import threading
 from collections.abc import Callable, Mapping
@@ -40,6 +41,21 @@ WAYLAND_GLOBAL_SHORTCUTS_INTERFACE = (
 )
 WAYLAND_REQUEST_INTERFACE = "org.freedesktop.portal.Request"
 WAYLAND_SESSION_INTERFACE = "org.freedesktop.portal.Session"
+
+
+def _new_portal_token(prefix: str) -> str:
+    """Return a unique token accepted in a D-Bus object-path component."""
+    return f"syllavox_{prefix}_{secrets.token_hex(8)}"
+
+
+def _portal_request_path(unique_name: str, token: str) -> str:
+    """Predict the Request handle path defined by the portal specification."""
+    sender = unique_name.lstrip(":").replace(".", "_")
+    if not sender:
+        raise HotkeyRegistrationError(
+            "The Wayland session bus did not assign a unique connection name."
+        )
+    return f"/org/freedesktop/portal/desktop/request/{sender}/{token}"
 
 
 def _portal_trigger(binding: HotkeyBinding) -> str:
@@ -332,21 +348,22 @@ class LinuxWaylandGlobalHotkey:
             await connected
         self._bus = bus
 
-        create_reply = await self._call(
+        create_token = _new_portal_token("create")
+        session_token = _new_portal_token("session")
+        create_response = await self._call_request(
             message,
             message_type,
+            request_token=create_token,
             interface=WAYLAND_GLOBAL_SHORTCUTS_INTERFACE,
             member="CreateSession",
             signature="a{sv}",
             body=[
                 {
-                    "handle_token": variant("s", "syllavox"),
-                    "session_handle_token": variant("s", "syllavoxsession"),
+                    "handle_token": variant("s", create_token),
+                    "session_handle_token": variant("s", session_token),
                 }
             ],
         )
-        create_request = str(create_reply.body[0])
-        create_response = await self._wait_for_request(create_request)
         session_handle = _unwrap_variant(
             _unwrap_variant(create_response.get("session_handle"))
         )
@@ -358,9 +375,11 @@ class LinuxWaylandGlobalHotkey:
 
         self._message_handler = self._handle_portal_message
         bus.add_message_handler(self._message_handler)
-        bind_reply = await self._call(
+        bind_token = _new_portal_token("bind")
+        bind_response = await self._call_request(
             message,
             message_type,
+            request_token=bind_token,
             interface=WAYLAND_GLOBAL_SHORTCUTS_INTERFACE,
             member="BindShortcuts",
             signature="oa(sa{sv})sa{sv}",
@@ -379,11 +398,9 @@ class LinuxWaylandGlobalHotkey:
                     )
                 ],
                 "",
-                {"handle_token": variant("s", "syllavoxbind")},
+                {"handle_token": variant("s", bind_token)},
             ],
         )
-        bind_request = str(bind_reply.body[0])
-        bind_response = await self._wait_for_request(bind_request)
         shortcuts = _unwrap_variant(bind_response.get("shortcuts", []))
         if not shortcuts:
             raise HotkeyRegistrationError(
@@ -464,12 +481,26 @@ class LinuxWaylandGlobalHotkey:
             )
         return reply
 
-    async def _wait_for_request(self, request_path: str) -> dict[str, Any]:
+    async def _call_request(
+        self,
+        message_type: Any,
+        dbus_message_type: Any,
+        *,
+        request_token: str,
+        interface: str,
+        member: str,
+        signature: str,
+        body: list[Any],
+    ) -> dict[str, Any]:
+        """Subscribe for a portal response before issuing the method call."""
         bus = self._bus
         if bus is None:
             raise HotkeyRegistrationError(
                 "The Wayland session bus is not connected."
             )
+        unique_name = str(getattr(bus, "unique_name", "") or "")
+        expected_path = _portal_request_path(unique_name, request_token)
+        request_paths = {expected_path}
         loop = asyncio.get_running_loop()
         response_future: asyncio.Future[tuple[int, dict[str, Any]]] = (
             loop.create_future()
@@ -478,7 +509,7 @@ class LinuxWaylandGlobalHotkey:
         def handler(message: Any) -> None:
             if (
                 _message_name(message) == "SIGNAL"
-                and getattr(message, "path", None) == request_path
+                and getattr(message, "path", None) in request_paths
                 and getattr(message, "interface", None) == WAYLAND_REQUEST_INTERFACE
                 and getattr(message, "member", None) == "Response"
             ):
@@ -489,6 +520,19 @@ class LinuxWaylandGlobalHotkey:
 
         bus.add_message_handler(handler)
         try:
+            reply = await self._call(
+                message_type,
+                dbus_message_type,
+                interface=interface,
+                member=member,
+                signature=signature,
+                body=body,
+            )
+            if not reply.body:
+                raise HotkeyRegistrationError(
+                    "The Wayland portal returned no request handle."
+                )
+            request_paths.add(str(reply.body[0]))
             response_code, results = await asyncio.wait_for(
                 response_future,
                 timeout=self._timeout_seconds,

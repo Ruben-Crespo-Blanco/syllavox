@@ -10,7 +10,14 @@ from __future__ import annotations
 from typing import Any
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QKeyEvent, QStandardItem, QStandardItemModel
+from PySide6.QtGui import (
+    QColor,
+    QKeyEvent,
+    QStandardItem,
+    QStandardItemModel,
+    QTextCharFormat,
+    QTextCursor,
+)
 from PySide6.QtWidgets import (
     QCheckBox,
     QComboBox,
@@ -25,6 +32,7 @@ from PySide6.QtWidgets import (
     QSizePolicy,
     QSlider,
     QSpinBox,
+    QTextEdit,
     QVBoxLayout,
     QWidget,
 )
@@ -77,6 +85,81 @@ _SPECIAL_KEY_NAMES = {
     Qt.Key.Key_Insert.value: "Insert",
     Qt.Key.Key_Delete.value: "Delete",
 }
+
+SAMPLE_TEXT = (
+    "Welcome to Syllavox. Select or copy text, then use your read shortcut "
+    "to hear it locally."
+)
+
+
+class OnboardingPanel(QGroupBox):
+    """Guide a new user to a successful first reading without a modal wizard."""
+
+    try_sample_requested = Signal()
+    voice_setup_requested = Signal()
+    finish_requested = Signal()
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__("Quick setup", parent)
+        self.setObjectName("onboardingCard")
+        self.setAccessibleName("Syllavox quick setup")
+
+        intro = QLabel(
+            "Hear your first text in three steps: choose an available voice, "
+            "try the sample, then test the read shortcut shown below."
+        )
+        intro.setWordWrap(True)
+
+        self.status_label = QLabel()
+        self.status_label.setObjectName("onboardingStatus")
+        self.status_label.setWordWrap(True)
+        self.status_label.setAccessibleName("Quick setup status")
+
+        self.voice_setup_button = QPushButton("Choose an offline voice…")
+        self.try_sample_button = QPushButton("Try the sample")
+        self.finish_button = QPushButton("Finish setup")
+        self.try_sample_button.setObjectName("accentButton")
+        self.finish_button.setObjectName("primaryButton")
+
+        self.voice_setup_button.setAccessibleDescription(
+            "Open the local voice catalog. Voice files download only after you confirm."
+        )
+        self.try_sample_button.setAccessibleDescription(
+            "Place a short example in the editor and read it using the selected voice."
+        )
+        self.finish_button.setAccessibleDescription(
+            "Hide quick setup after voice playback and shortcut configuration are clear."
+        )
+
+        self.voice_setup_button.clicked.connect(self.voice_setup_requested)
+        self.try_sample_button.clicked.connect(self.try_sample_requested)
+        self.finish_button.clicked.connect(self.finish_requested)
+
+        actions = QHBoxLayout()
+        actions.addWidget(self.voice_setup_button)
+        actions.addWidget(self.try_sample_button)
+        actions.addStretch()
+        actions.addWidget(self.finish_button)
+
+        layout = QVBoxLayout()
+        layout.addWidget(intro)
+        layout.addWidget(self.status_label)
+        layout.addLayout(actions)
+        self.setLayout(layout)
+
+    def update_status(self, *, has_voice: bool, hotkey: str) -> None:
+        """Describe the next useful setup action and enable valid controls."""
+        self.try_sample_button.setEnabled(has_voice)
+        self.finish_button.setEnabled(has_voice)
+        if has_voice:
+            self.status_label.setText(
+                f"A voice is ready. Try the sample, then copy text anywhere and press {hotkey}."
+            )
+        else:
+            self.status_label.setText(
+                "No voice is ready yet. Choose an offline voice to download; on supported "
+                "systems, an already-installed system voice appears automatically."
+            )
 
 
 class HotkeyEdit(QLineEdit):
@@ -177,8 +260,18 @@ class VoiceSelectorWidget(QWidget):
 
         self.combo = QComboBox()
         self.combo.setObjectName("voiceSelector")
+        self.combo.setAccessibleName("Reading voice")
+        self.combo.setAccessibleDescription(
+            "Select the voice shared by the window, shortcut, browser extension, and local API."
+        )
         self.find_button = QPushButton("Find voices…")
         self.manage_button = QPushButton("Manage voices…")
+        self.find_button.setAccessibleDescription(
+            "Browse voices that can be downloaded and stored on this computer."
+        )
+        self.manage_button.setAccessibleDescription(
+            "Inspect and manage voices available to Syllavox."
+        )
         self._last_voice_index = -1
 
         self.combo.currentIndexChanged.connect(self._on_index_changed)
@@ -355,8 +448,13 @@ class SpeechEditorWidget(QWidget):
         self.setObjectName("card")
         self.text_edit.setObjectName("speechText")
         self.text_edit.setPlaceholderText("Enter text to read aloud…")
+        self.text_edit.setAccessibleName("Text to read aloud")
+        self.text_edit.setAccessibleDescription(
+            "Enter or paste text. The highlighted unit is the current reading position."
+        )
         self.character_count_label = QLabel()
         self.character_count_label.setObjectName("characterCount")
+        self.character_count_label.setAccessibleName("Speech character count")
 
         self.speak_button = QPushButton("Speak")
         self.export_button = QPushButton("Export WAV...")
@@ -366,9 +464,41 @@ class SpeechEditorWidget(QWidget):
         self.feedback_label = QLabel()
         self.feedback_label.setObjectName("feedbackLabel")
         self.feedback_label.setWordWrap(True)
+        self.feedback_label.setAccessibleName("Speech status message")
+
+        self.navigation_mode_combo = QComboBox()
+        self.navigation_mode_combo.setObjectName("navigationMode")
+        self.navigation_mode_combo.addItem("Sentence", "sentence")
+        self.navigation_mode_combo.addItem("Paragraph", "paragraph")
+        self.navigation_mode_combo.setAccessibleName("Reading navigation unit")
+        self.previous_button = QPushButton("Previous")
+        self.replay_button = QPushButton("Replay")
+        self.next_button = QPushButton("Next")
+        self.navigation_status_label = QLabel("No reading position")
+        self.navigation_status_label.setObjectName("navigationStatus")
+        self.navigation_status_label.setAccessibleName("Reading position")
 
         self.speak_button.setObjectName("accentButton")
         self.export_button.setObjectName("primaryButton")
+        self.speak_button.setShortcut("Ctrl+Return")
+        self.speak_button.setAccessibleDescription(
+            "Start reading at the highlighted sentence or paragraph. Shortcut Ctrl+Enter."
+        )
+        self.pause_resume_button.setAccessibleDescription(
+            "Pause or resume the current spoken unit."
+        )
+        self.stop_button.setAccessibleDescription(
+            "Stop playback and preserve the current reading position."
+        )
+        self.previous_button.setAccessibleDescription(
+            "Move to and read the previous sentence or paragraph."
+        )
+        self.replay_button.setAccessibleDescription(
+            "Read the current sentence or paragraph again."
+        )
+        self.next_button.setAccessibleDescription(
+            "Move to and read the next sentence or paragraph."
+        )
         self.text_edit.setMinimumHeight(210)
         self.text_edit.setSizePolicy(
             QSizePolicy.Policy.Expanding,
@@ -392,14 +522,78 @@ class SpeechEditorWidget(QWidget):
             )
             button_layout.addWidget(button)
 
+        navigation_layout = QHBoxLayout()
+        navigation_layout.setContentsMargins(0, 0, 0, 0)
+        navigation_layout.setSpacing(8)
+        navigation_layout.addWidget(QLabel("Navigate by:"))
+        navigation_layout.addWidget(self.navigation_mode_combo)
+        navigation_layout.addWidget(self.previous_button)
+        navigation_layout.addWidget(self.replay_button)
+        navigation_layout.addWidget(self.next_button)
+        navigation_layout.addStretch()
+        navigation_layout.addWidget(self.navigation_status_label)
+
         layout = QVBoxLayout()
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
         layout.addWidget(self.text_edit)
         layout.addWidget(self.character_count_label)
         layout.addLayout(button_layout)
+        layout.addLayout(navigation_layout)
         layout.addWidget(self.feedback_label)
         self.setLayout(layout)
+
+        for button in (
+            self.previous_button,
+            self.replay_button,
+            self.next_button,
+        ):
+            button.setMinimumHeight(36)
+
+    def set_navigation_state(
+        self,
+        *,
+        mode: str,
+        index: int,
+        count: int,
+        previous_enabled: bool,
+        next_enabled: bool,
+        replay_enabled: bool,
+    ) -> None:
+        """Apply session position and navigation availability."""
+        mode_index = self.navigation_mode_combo.findData(mode)
+        if mode_index >= 0 and mode_index != self.navigation_mode_combo.currentIndex():
+            self.navigation_mode_combo.blockSignals(True)
+            self.navigation_mode_combo.setCurrentIndex(mode_index)
+            self.navigation_mode_combo.blockSignals(False)
+        unit = "sentence" if mode == "sentence" else "paragraph"
+        self.navigation_status_label.setText(
+            f"{unit.capitalize()} {index + 1} of {count}"
+            if count
+            else "No reading position"
+        )
+        self.previous_button.setEnabled(previous_enabled)
+        self.next_button.setEnabled(next_enabled)
+        self.replay_button.setEnabled(replay_enabled)
+        self.previous_button.setAccessibleName(f"Previous {unit}")
+        self.replay_button.setAccessibleName(f"Replay current {unit}")
+        self.next_button.setAccessibleName(f"Next {unit}")
+
+    def highlight_range(self, start: int | None, end: int | None) -> None:
+        """Highlight the active source range without moving the edit cursor."""
+        if start is None or end is None or start >= end:
+            self.text_edit.setExtraSelections([])
+            return
+        selection = QTextEdit.ExtraSelection()
+        cursor = QTextCursor(self.text_edit.document())
+        cursor.setPosition(start)
+        cursor.setPosition(end, QTextCursor.MoveMode.KeepAnchor)
+        selection.cursor = cursor
+        selection.format = QTextCharFormat()
+        selection.format.setBackground(QColor("#ffe9a8"))
+        selection.format.setForeground(QColor("#172033"))
+        self.text_edit.setExtraSelections([selection])
+        self.text_edit.ensureCursorVisible()
 
     def update_character_count(self, maximum: int) -> None:
         """Update the visible character counter."""
@@ -436,6 +630,7 @@ class SettingsPanel(QGroupBox):
     clear_local_data_requested = Signal()
     hotkey_apply_requested = Signal()
     restart_requested = Signal()
+    setup_again_requested = Signal()
 
     def __init__(
         self,
@@ -456,6 +651,7 @@ class SettingsPanel(QGroupBox):
         self.run_on_startup_checkbox.setVisible(is_startup_supported())
         self.remember_window_checkbox = QCheckBox("Remember window size")
         self.backend_combo = QComboBox()
+        self.backend_combo.setAccessibleName("Speech engine")
         self.max_text_length_spinbox = QSpinBox()
         self.hotkey_action_combo = QComboBox()
         self.hotkey_edit = HotkeyEdit()
@@ -493,6 +689,18 @@ class SettingsPanel(QGroupBox):
         self.clear_local_data_button = QPushButton(
             "Clear local data and quit"
         )
+        self.setup_again_button = QPushButton("Run setup again…")
+        self.setup_again_button.setAccessibleDescription(
+            "Show the quick setup tutorial and sample again without changing your saved text."
+        )
+        self.advanced_button = QPushButton("Show advanced settings")
+        self.advanced_button.setCheckable(True)
+        self.advanced_button.setAccessibleDescription(
+            "Show speech engine and maximum request length controls."
+        )
+        self.advanced_panel = QWidget()
+        self.advanced_panel.setObjectName("advancedSettings")
+        self.advanced_panel.hide()
 
         self.max_text_length_spinbox.setRange(
             100,
@@ -531,6 +739,13 @@ class SettingsPanel(QGroupBox):
         self.clear_local_data_button.clicked.connect(
             self.clear_local_data_requested
         )
+        self.setup_again_button.clicked.connect(self.setup_again_requested)
+        self.advanced_button.toggled.connect(self.advanced_panel.setVisible)
+        self.advanced_button.toggled.connect(
+            lambda expanded: self.advanced_button.setText(
+                "Hide advanced settings" if expanded else "Show advanced settings"
+            )
+        )
 
         form = QFormLayout()
         form.setLabelAlignment(
@@ -547,17 +762,18 @@ class SettingsPanel(QGroupBox):
         form.addRow(self.start_minimized_checkbox)
         form.addRow(self.run_on_startup_checkbox)
         form.addRow(self.remember_window_checkbox)
-        form.addRow("Speech engine:", self.backend_combo)
-        form.addRow(self.backend_hint_label)
-
         backend_action_layout = QHBoxLayout()
         backend_action_layout.setContentsMargins(0, 0, 0, 0)
         backend_action_layout.addWidget(self.backend_restart_hint_label)
         backend_action_layout.addStretch()
         backend_action_layout.addWidget(self.backend_restart_button)
-        form.addRow(backend_action_layout)
-
-        form.addRow("Max text length:", self.max_text_length_spinbox)
+        advanced_form = QFormLayout(self.advanced_panel)
+        advanced_form.setContentsMargins(0, 0, 0, 0)
+        advanced_form.setRowWrapPolicy(QFormLayout.RowWrapPolicy.WrapLongRows)
+        advanced_form.addRow("Speech engine:", self.backend_combo)
+        advanced_form.addRow(self.backend_hint_label)
+        advanced_form.addRow(backend_action_layout)
+        advanced_form.addRow("Max text length:", self.max_text_length_spinbox)
 
         hotkey_layout = QHBoxLayout()
         hotkey_layout.addWidget(self.hotkey_edit)
@@ -574,6 +790,9 @@ class SettingsPanel(QGroupBox):
         form.addRow("Volume:", volume_layout)
         form.addRow("Speed:", self.rate_spinbox)
         form.addRow("Privacy:", self.clear_local_data_button)
+        form.addRow("Help:", self.setup_again_button)
+        form.addRow(self.advanced_button)
+        form.addRow(self.advanced_panel)
         self.setLayout(form)
 
         for control in (
@@ -588,6 +807,7 @@ class SettingsPanel(QGroupBox):
             self.apply_hotkey_button,
             self.backend_restart_button,
             self.clear_local_data_button,
+            self.setup_again_button,
         ):
             button.setMinimumHeight(36)
         self.backend_combo.setMinimumWidth(220)
@@ -754,6 +974,8 @@ class SettingsPanel(QGroupBox):
 
 __all__ = [
     "HotkeyEdit",
+    "OnboardingPanel",
+    "SAMPLE_TEXT",
     "SettingsPanel",
     "SpeechEditorWidget",
     "VoiceSelectorWidget",

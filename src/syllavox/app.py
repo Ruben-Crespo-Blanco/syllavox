@@ -6,6 +6,7 @@ import sys
 from dataclasses import dataclass
 from logging import Logger
 
+from PySide6.QtCore import QProcess
 from PySide6.QtWidgets import QApplication, QMessageBox, QSystemTrayIcon
 
 from .api.context import ApiContext
@@ -59,10 +60,13 @@ from .tray.theme import apply_app_theme
 from .tray.window import MainWindow
 from .tts.manager import TTSBackendManager
 from .tts.backend_registry import (
+    available_system_backend_id,
     backend_display_name,
     create_backend,
+    is_system_backend,
     normalize_backend_id,
 )
+from .tts.fallback import SystemVoiceFallbackBackend
 from .tts.catalog import (
     PiperVoiceCatalog,
     SherpaVoiceCatalog,
@@ -172,6 +176,22 @@ def _create_speech_services(
         )
         configured_backend = DEFAULT_TTS_BACKEND
         backend = create_backend(DEFAULT_TTS_BACKEND)
+
+    if configured_backend == DEFAULT_TTS_BACKEND and not is_system_backend(
+        configured_backend
+    ):
+        system_backend_id = available_system_backend_id()
+        if system_backend_id is not None:
+            try:
+                system_backend = create_backend(system_backend_id)
+                if system_backend.health().healthy and system_backend.list_voices():
+                    backend = SystemVoiceFallbackBackend(backend, system_backend)
+                    logger.info(
+                        "System voices are available as a zero-download fallback: %s",
+                        backend_display_name(system_backend_id),
+                    )
+            except Exception as exc:
+                logger.info("System voice fallback is unavailable: %s", exc)
 
     if configured_backend == SHERPA_ONNX_TTS_BACKEND:
         logger.info(
@@ -540,6 +560,14 @@ def _create_runtime() -> ApplicationRuntime:
     return runtime
 
 
+def _start_detached_process(executable: str, arguments: list[str]) -> bool:
+    """Normalize PySide's bool/tuple startDetached return forms."""
+    result = QProcess.startDetached(executable, arguments)
+    if isinstance(result, tuple):
+        return bool(result[0])
+    return bool(result)
+
+
 def bootstrap() -> int:
     """Construct the application, run Qt, and always release the runtime."""
     instance_guard = SingleInstanceGuard()
@@ -549,6 +577,8 @@ def bootstrap() -> int:
         return 0
 
     runtime: ApplicationRuntime | None = None
+    restart_command: tuple[str, list[str]] | None = None
+    exit_code = 0
 
     try:
         runtime = _create_runtime()
@@ -587,12 +617,25 @@ def bootstrap() -> int:
                 "Ready and running in the system tray.",
             )
 
-        return runtime.qt_app.exec()
+        exit_code = runtime.qt_app.exec()
+        restart_command = runtime.main_window.restart_command
 
     finally:
         if runtime is not None:
             runtime.shutdown()
         instance_guard.release()
+
+    if restart_command is not None:
+        executable, arguments = restart_command
+        if not _start_detached_process(executable, arguments):
+            get_logger(__name__).error(
+                "Could not start replacement Syllavox process: %s %s",
+                executable,
+                arguments,
+            )
+            return 1
+
+    return exit_code
 
 
 __all__ = ["ApplicationRuntime", "bootstrap"]

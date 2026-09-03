@@ -1,6 +1,8 @@
 import os
 from pathlib import Path
 
+import pytest
+
 import syllavox.platform_paths as platform_paths
 from syllavox.constants import APP_NAME, LOGS_DIR_NAME, SETTINGS_FILE_NAME
 from syllavox.paths import (
@@ -10,7 +12,11 @@ from syllavox.paths import (
     get_logs_dir,
     get_settings_file_path,
 )
-from syllavox.tts.paths import get_sherpa_onnx_models_dir
+from syllavox.tts.paths import (
+    get_request_audio_path,
+    get_retained_audio_path,
+    get_sherpa_onnx_models_dir,
+)
 
 
 def test_get_local_appdata_dir_uses_localappdata(
@@ -119,3 +125,17 @@ def test_ensure_app_directories_creates_base_and_logs(
 
     assert get_logs_dir().exists()
     assert get_logs_dir().is_dir()
+
+
+@pytest.mark.parametrize(
+    "artifact_id",
+    ("../outside", "..\\outside", "/absolute", "name/child", "..", ""),
+)
+def test_audio_artifact_paths_reject_unsafe_ids(
+    artifact_id: str,
+) -> None:
+    with pytest.raises(ValueError, match="artifact ID"):
+        get_request_audio_path(artifact_id)
+
+    with pytest.raises(ValueError, match="artifact ID"):
+        get_retained_audio_path(artifact_id)

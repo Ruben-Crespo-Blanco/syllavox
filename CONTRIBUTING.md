@@ -3,11 +3,11 @@
 Thank you for taking an interest in Syllavox. The project is a
 local text-to-speech application maintained as a small side project.
 
-Version 0.7.0 adds the Ubuntu-first Linux adaptation while preserving the
-validated Windows SAPI installer path, macOS build path, Sherpa language
-coverage, hardening work, Piper and Sherpa voices, a shared local speech
-pipeline, browser-selected text, configurable clipboard hotkeys, polished Qt
-windows, and a local API.
+Version 1.0.0 is the stable release. It includes the validated Windows SAPI
+installer path, macOS and Linux build paths, Sherpa language coverage,
+hardening work, Piper and Sherpa voices, a shared local speech pipeline,
+browser-selected text, configurable clipboard hotkeys, guided setup and
+reading sessions, polished Qt windows, and a local API.
 Contributions should preserve
 that local-first behavior unless a change is explicitly discussed first.
 
@@ -96,7 +96,7 @@ Install the host tools and optional platform integrations:
 
 ```bash
 sudo apt update
-sudo apt install espeak-ng python3-venv dpkg-dev
+sudo apt install espeak-ng python3-venv dpkg-dev desktop-file-utils
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev,packaging,linux]"

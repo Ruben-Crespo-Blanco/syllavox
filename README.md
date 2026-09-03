@@ -1,22 +1,27 @@
 # Syllavox
 
-Syllavox reads text aloud on your computer using local speech synthesis. Text
-is processed on the computer rather than sent to a cloud TTS service.
+**Hear any desktop text privately—one shortcut, offline, no account.**
 
-This is the v0.7.0 development release. Windows has an installer and a
+Syllavox is a local-first read-aloud utility for privacy-conscious students
+and knowledge workers who listen across applications. Text is processed on the
+computer rather than sent to a cloud TTS service.
+
+This is the v1.0.0 stable release. Windows has an installer and a
 portable ZIP for ordinary use. The shared macOS adaptation and native build
 path are included in the source, and Ubuntu-first Linux source and packaging
 paths are included as well. No Python installation is required for published
 artifacts.
 
 For the concise public-release summary, see the
-[v0.7.0 implementation notes](docs/release-notes-0.7.0.md).
+[v1.0.0 release notes](docs/release-notes-1.0.0.md).
+Maintainers can use [scripts/release_v1.0.0.ps1](scripts/release_v1.0.0.ps1)
+to review, commit, tag, and optionally push the release.
 
 ## Before you start
 
-- Windows remains the established published distribution path. macOS and
-  Ubuntu-first Linux source/build paths are included and require native
-  builds for their final artifacts.
+- Windows remains the supported and established distribution path. macOS is
+  best effort, and Ubuntu-first Linux is best effort on amd64; other targets
+  are experimental. See the [support matrix](docs/support-matrix.md).
 - The public application does not include voice models. You choose and
   download the voices you want from Piper's official catalog or, in a
   Sherpa-enabled build, from Syllavox's curated Sherpa-ONNX model catalog.
@@ -27,8 +32,9 @@ For the concise public-release summary, see the
 - The portable folder is large because it contains the application runtime and
   Chinese-language support. Syllavox uses one universal distribution; there
   are no separate Chinese and non-Chinese builds.
-- Windows SAPI is available in SAPI-enabled builds and uses voices already
-  installed in Windows; those voices are not downloaded by Syllavox.
+- The recommended Windows installer includes SAPI support. When an operating-
+  system voice is available, the default Piper workflow offers it immediately
+  as a zero-download fallback.
 
 ## Install and start Syllavox
 
@@ -56,16 +62,26 @@ first public builds may not be code-signed.
 
 ## First-time voice setup
 
-The application starts without a voice model intentionally. This keeps the
-distribution from imposing a voice or redistributing voice-model files.
+The **Quick setup** card guides first use without requiring knowledge of
+speech engines:
 
-1. Open the Syllavox window from the tray icon.
-2. Select **Find more voices...**.
-3. Browse the catalog by language and choose a voice.
-4. Select **Install selected** and wait for both model files to finish
-   downloading.
-5. Select the installed voice in the voice list.
-6. Enter a short test sentence and select **Speak**.
+1. If the operating system already provides a usable voice, Syllavox selects
+   it as an immediate zero-download option.
+2. Select **Try the sample** to hear the included text.
+3. To add a local neural voice, select **Choose an offline voice...**. The
+   catalog marks one quality-first match for the system language as
+   **Recommended** when available.
+4. Confirm **Install selected**. The catalog reports download progress and an
+   actionable failure if setup cannot finish.
+5. Test the displayed read shortcut with text copied from another application,
+   then select **Finish setup**.
+
+To review this guidance later, open **Settings → Help → Run setup again…**.
+This reopens Quick setup without replacing your saved text or voice settings.
+
+Voice models are still not bundled. This keeps Syllavox from imposing a voice
+or redistributing model files, while system speech removes the empty first-run
+state on supported installations.
 
 The first use of some Chinese voices may also download Piper's `g2pW`
 phonemization resource. This is a shared language resource and is reused by
@@ -74,24 +90,23 @@ later Chinese speech requests.
 To use the four v0.4.2 Sherpa additions (Afrikaans, Bengali, Gujarati, or
 Tswana), use a Sherpa-enabled build, choose **Sherpa-ONNX** in **Settings**,
 save the selection, and use the displayed restart action. Then return to
-**Find more voices...** and install the desired bundle. The Sherpa runtime is
+**Find voices...** and install the desired bundle. The Sherpa runtime is
 optional, and model archives are downloaded only when you select them.
 
-To use Windows' installed system voices, use a SAPI-enabled build, choose
-**Windows SAPI** in **Settings**, save the selection, and select the displayed
-restart action. Open **System voices…** to review the voices Windows exposes.
-System voices are read-only in Syllavox: installation, removal, and language
-changes are handled by Windows.
+The recommended Windows installer offers installed SAPI voices automatically
+alongside Piper voices. System voices are read-only in Syllavox: installation,
+removal, and language changes are handled by Windows. The Advanced settings
+can still make Windows SAPI the exclusive speech engine when required.
 
-On macOS, choose **macOS system voices** in **Settings**, save the selection,
-and select the displayed restart action. The voice list then shows voices
-installed by macOS. If the global hotkey is unavailable, enable Syllavox under
-**System Settings → Privacy & Security → Input Monitoring**.
+On macOS, installed system voices are offered automatically when available.
+The Advanced settings can make macOS system speech the exclusive engine. If
+the global hotkey is unavailable, enable Syllavox under **System Settings →
+Privacy & Security → Input Monitoring**.
 
-On Ubuntu/Linux, install the optional host speech engine with
-`sudo apt install espeak-ng`, then choose **Linux system voices (eSpeak NG)**
-in **Settings**. Syllavox discovers the voices supplied by the system package;
-it does not download or manage them. X11 global hotkeys use the optional
+On Ubuntu/Linux, install the optional host speech engine with `sudo apt install
+espeak-ng`. Syllavox then offers the voices supplied by the system package
+without downloading or managing them. The Advanced settings can make eSpeak
+NG the exclusive engine. X11 global hotkeys use the optional
 `python-xlib` integration. Wayland uses the desktop's Global Shortcuts portal
 when the desktop provides it; some desktops may ask for approval or may not
 offer the portal.
@@ -109,7 +124,7 @@ Syllavox has two voice catalogs. Piper is the default and has the broadest
 selection. Sherpa-ONNX is optional and adds a smaller curated selection of
 non-Piper voices. The live Piper catalog can change as voices are added or
 removed, and the exact locales, speakers, and quality levels vary by language;
-use **Find more voices...** to see the current downloadable entries.
+use **Find voices...** to see the current downloadable entries.
 
 Windows SAPI is a third, read-only voice source. It exposes the voices
 installed in Windows and does not have a downloadable Syllavox catalog.
@@ -161,16 +176,20 @@ The main window lets you:
 - choose an installed voice, grouped by language;
 - speak the text;
 - pause, resume, or stop playback;
+- navigate and replay by sentence or paragraph;
+- follow the highlighted active unit;
+- restore the editor content and reading position after closing or restarting;
 - export speech to a WAV file;
 - adjust playback volume and speed;
 - manage installed voices.
 
-The v0.4.0 interface uses a quieter visual hierarchy with rounded cards,
+The v1.0.0 interface uses a quieter visual hierarchy with rounded cards,
 generous spacing, and a focused light palette. The application icon and window
 identity use the same original Syllavox speech-and-waveform mark.
 
-New speech requests interrupt the current playback. Syllavox does not queue
-multiple requests.
+Main-window reading divides text into navigable units and continues through
+them in order. New requests from the hotkey, browser, or API still interrupt
+current playback; Syllavox does not queue independent requests.
 
 Before synthesis, Syllavox applies conservative text formatting: it removes
 common HTML/Markdown decoration, decodes HTML entities, normalizes Unicode,
@@ -201,10 +220,10 @@ It sends selected text to the Syllavox application on the same computer.
 
 The desktop application must already be running.
 
-For installation instructions, see
-[the extension guide](extension/README.md). Chrome and Edge are supported;
-Firefox support is experimental and uses a temporary extension that must be
-loaded again after Firefox restarts.
+For current installation and packaging instructions, see [the extension
+guide](extension/README.md). Chrome/Edge and Firefox submission packages are
+produced by CI, but normal browser-store installation is not available until
+the external store reviews are complete. Firefox remains experimental.
 
 ### Exporting a WAV file
 
@@ -234,7 +253,7 @@ Linux: $XDG_DATA_HOME/Syllavox/ or ~/.local/share/Syllavox/
 
 | Location | Contents |
 |---|---|
-| `settings.json` | Application and playback settings |
+| `settings.json` | Application/playback settings and the locally restored editor text and reading position |
 | `logs\app.log` | Local diagnostic and lifecycle logs |
 | `models\piper\` | Downloaded Piper voice model pairs |
 | `models\piper\g2pW\` | Chinese phonemization data when needed |
@@ -242,11 +261,13 @@ Linux: $XDG_DATA_HOME/Syllavox/ or ~/.local/share/Syllavox/
 | `tmp\` | Temporary playback files, cleaned automatically |
 | `audio\` | Explicitly retained runtime audio files |
 
-The current release can delete individual voice models from **Manage
-voices...**, remove unused `g2pW` data, or use **Clear local data and quit** in
-the Settings section. The privacy action removes all Syllavox-managed settings,
-logs, temporary and retained audio, downloaded models, and language resources.
-It does not delete WAV files exported to other locations.
+The current release can delete individual downloaded voice models from
+**Manage voices...**, remove unused `g2pW` data, or use **Clear local data and
+quit** in the Settings section. Voices supplied by Windows, macOS, or Linux
+are read-only and remain managed by the operating system. The privacy action
+removes all Syllavox-managed settings, logs, temporary and retained audio,
+downloaded models, and language resources. It does not delete WAV files
+exported to other locations.
 
 To remove the application manually, quit Syllavox and delete the extracted
 portable application folder. This does not remove local settings, logs, or
@@ -259,8 +280,9 @@ removed by this action.
 
 ### The application says that no voices are available
 
-Open the window, select **Find more voices...**, and install at least one
-voice. Voice models are not included in the public download.
+Open the window and follow **Quick setup**. If no system voice is available,
+select **Choose an offline voice...** and install one voice. Voice models are
+not included in the public download.
 
 ### The tray icon is not visible
 
@@ -291,11 +313,11 @@ itself.
 
 ## Release scope and limitations
 
-Version 0.7.0 extends the focused desktop MVP with:
+The v1.0.0 release includes:
 
 - one universal portable Windows distribution, including Chinese support;
 - no bundled voice models;
-- no conventional installer or automatic updater;
+- a per-user Windows installer plus a portable alternative; no automatic updater;
 - Chrome and Edge extension support;
 - experimental Firefox support;
 - local HTTP API for integrations;
@@ -316,7 +338,7 @@ Version 0.7.0 extends the focused desktop MVP with:
   speech provider boundary;
 - read-only management for Windows-owned system voices, with no model files
   downloaded or deleted by Syllavox;
-- no playback queue; new requests interrupt current playback.
+- no independent-request queue; new hotkey, browser, or API requests interrupt current playback;
 - a shared macOS adaptation with built-in system speech, AppKit hotkeys,
   per-user startup registration, and a native `.app` packaging path;
 - platform-specific macOS ZIP/DMG/checksum build tooling, with signing and
@@ -325,18 +347,21 @@ Version 0.7.0 extends the focused desktop MVP with:
   Wayland global-hotkey adapters, optional eSpeak NG system voices, and `.deb`
   and AppImage packaging scaffolding.
 
-The maximum text length setting defaults to 1,000 characters and can be
-increased to 10,000. The upper bound is a practical safeguard for the current
-single-request speech workflow, not a Piper engine limitation; reading
-sessions and chunked long-form playback remain deferred until after 1.0.0.
+Guided first-run setup is available from the main window, and the permanent
+**Run setup again…** action reopens it without replacing saved reading content.
+Windows-owned system voices are read-only in voice management and cannot be
+deleted by Syllavox.
+
+The maximum synthesis-unit length defaults to 1,000 characters and can be
+increased to 10,000. Main-window reading divides longer text into sentences or
+paragraphs; full-document WAV export remains subject to the configured limit.
 
 The macOS and Linux artifacts require native builds and manual verification on
 their target systems. Piper remains the default backend. The base portable
 build stays Piper-only to minimize download size; Sherpa and system-voice
 builds are explicit variants, while voice models are always downloaded
-separately.
-Reading sessions and a dedicated accessibility-first reading interface remain
-deferred until after 1.0.0.
+separately. The exact support tiers and native verification guidance are listed
+in the [support matrix](docs/support-matrix.md) and [accessibility checklist](docs/accessibility-test-plan.md).
 The internal import package is `syllavox`, and application data is stored in
 the current Syllavox data directory.
 
@@ -406,7 +431,7 @@ tools and optional Linux integration packages:
 
 ```bash
 sudo apt update
-sudo apt install espeak-ng python3-venv dpkg-dev
+sudo apt install espeak-ng python3-venv dpkg-dev desktop-file-utils
 python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e ".[dev,packaging,linux]"

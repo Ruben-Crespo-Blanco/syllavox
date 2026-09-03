@@ -17,6 +17,7 @@ from syllavox.settings import SettingsManager
 from syllavox.speech.controller import SpeechController
 from syllavox.state import AppState, StateManager
 from syllavox.tray.window import MainWindow
+from syllavox.tray.window_widgets import SAMPLE_TEXT
 from syllavox.tts.base import VoiceInfo
 from syllavox.tts.manager import TTSBackendManager
 
@@ -74,6 +75,9 @@ def make_window(
         backend_manager=backend_manager,
         audio_player=audio_player,
         logger=logging.getLogger("tests.window"),
+    )
+    audio_player.set_finished_callback(
+        speech_controller.handle_playback_finished
     )
 
     window = MainWindow(
@@ -366,4 +370,118 @@ def test_window_keeps_settings_when_hotkey_reconfiguration_fails(
 
     assert settings_manager.settings["hotkey"]["key"] == "Ctrl+Alt+R"
     assert "Hotkey was not changed" in window._feedback_label.text()
+    window.close()
+
+
+def test_window_onboarding_uses_a_ready_voice_and_sample(
+    tmp_path: Path,
+    qt_app: QApplication,
+) -> None:
+    window, settings_manager, _, _ = make_window(tmp_path, qt_app)
+
+    assert window._onboarding_panel.isHidden() is False
+    assert window._onboarding_panel.try_sample_button.isEnabled() is True
+
+    window._onboarding_panel.try_sample_button.click()
+
+    assert window._text_edit.toPlainText() == SAMPLE_TEXT
+    assert window._speech_controller.active_request_id is not None
+
+    window._stop_button.click()
+    window._onboarding_panel.finish_button.click()
+
+    assert settings_manager.settings["onboarding"]["completed"] is True
+    assert window._onboarding_panel.isHidden() is True
+    window.close()
+
+
+def test_window_can_reopen_setup_after_finishing_without_losing_text(
+    tmp_path: Path,
+    qt_app: QApplication,
+) -> None:
+    window, settings_manager, _, _ = make_window(tmp_path, qt_app)
+    window._text_edit.setPlainText("Keep this text")
+    window._onboarding_panel.finish_button.click()
+
+    assert window._onboarding_panel.isHidden() is True
+    window._setup_again_button.click()
+
+    assert settings_manager.settings["onboarding"]["completed"] is False
+    assert window._onboarding_panel.isHidden() is False
+    assert window._text_edit.toPlainText() == "Keep this text"
+    assert "Quick setup reopened" in window._feedback_label.text()
+    window.close()
+
+
+def test_window_reads_sentence_chunks_and_advances_after_completion(
+    tmp_path: Path,
+    qt_app: QApplication,
+) -> None:
+    window, _, state_manager, backend = make_window(tmp_path, qt_app)
+    audio_player = window._speech_controller._audio_player
+    window._text_edit.setPlainText("First sentence. Second sentence.")
+
+    window._speak_button.click()
+
+    assert backend.synthesis_calls[-1].text == "First sentence."
+    first_request_id = window._speech_controller.active_request_id
+    assert first_request_id is not None
+
+    audio_player.simulate_finished(first_request_id)
+    qt_app.processEvents()
+    qt_app.processEvents()
+
+    assert state_manager.state == AppState.SPEAKING
+    assert backend.synthesis_calls[-1].text == "Second sentence."
+    assert window._speech_editor.navigation_status_label.text() == (
+        "Sentence 2 of 2"
+    )
+    window._stop_button.click()
+    window.close()
+
+
+def test_window_navigation_highlights_and_persists_position(
+    tmp_path: Path,
+    qt_app: QApplication,
+) -> None:
+    window, _, _, backend = make_window(tmp_path, qt_app)
+    window._text_edit.setPlainText("First sentence. Second sentence.")
+
+    assert len(window._text_edit.extraSelections()) == 1
+    window._next_button.click()
+
+    assert backend.synthesis_calls[-1].text == "Second sentence."
+    assert window._reading_session is not None
+    assert window._reading_session.index == 1
+    window._stop_button.click()
+    window.close()
+
+    restored, _, _, _ = make_window(tmp_path, qt_app)
+    assert restored._text_edit.toPlainText() == (
+        "First sentence. Second sentence."
+    )
+    assert restored._reading_session is not None
+    assert restored._reading_session.index == 1
+    assert restored._speech_editor.navigation_status_label.text() == (
+        "Sentence 2 of 2"
+    )
+    restored.close()
+
+
+def test_window_exposes_accessible_names_and_hides_engine_settings(
+    tmp_path: Path,
+    qt_app: QApplication,
+) -> None:
+    window, _, _, _ = make_window(tmp_path, qt_app)
+
+    assert window._text_edit.accessibleName() == "Text to read aloud"
+    assert window._voice_combo.accessibleName() == "Reading voice"
+    assert window._settings_panel.advanced_panel.isHidden() is True
+
+    window._settings_panel.advanced_button.click()
+
+    assert window._settings_panel.advanced_panel.isHidden() is False
+    assert window._settings_panel.advanced_button.text() == (
+        "Hide advanced settings"
+    )
     window.close()

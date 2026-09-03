@@ -1,0 +1,139 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  python-tests:
+    name: Python tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    env:
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: python -m pip install -e ".[dev,linux]"
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: python -m pip install -e ".[dev,macos]"
+      - name: Install Windows dependencies
+        if: runner.os == 'Windows'
+        run: python -m pip install -e ".[dev,sapi]"
+      - name: Run Python test suite
+        run: python -m pytest -q -rs
+      - name: Check installed dependency consistency
+        run: python -m pip check
+
+  extension-tests:
+    name: Browser extension tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Run extension tests
+        run: node --test extension/tests/*.test.js
+
+  extension-packages:
+    name: Build browser extension submission packages
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Chromium and Firefox packages
+        shell: pwsh
+        run: |
+          & ./extension/package_chromium.ps1
+          & ./extension/package_firefox.ps1
+      - name: Verify packaged manifests
+        shell: pwsh
+        run: |
+          foreach ($path in @(
+            './build/chromium/Syllavox/manifest.json',
+            './build/firefox/Syllavox/manifest.json',
+            './build/chromium/Syllavox-chromium.zip.sha256',
+            './build/firefox/Syllavox-firefox.zip.sha256'
+          )) {
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+              throw "Missing extension package output: $path"
+            }
+          }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: browser-extension-submission-packages
+          path: |
+            build/chromium/*.zip
+            build/chromium/*.sha256
+            build/firefox/*.zip
+            build/firefox/*.sha256
+
+  linux-appimage-smoke:
+    name: Build and launch Linux AppImage
+    runs-on: ubuntu-latest
+    env:
+      APPIMAGE_EXTRACT_AND_RUN: "1"
+      QT_QPA_PLATFORM: offscreen
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install packaging prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes desktop-file-utils
+          python -m pip install -e ".[dev,packaging,linux]"
+      - name: Download appimagetool
+        run: |
+          curl --fail --location --output appimagetool.AppImage \
+            https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+          chmod +x appimagetool.AppImage
+      - name: Build Linux packages
+        env:
+          APPIMAGE_TOOL: ${{ github.workspace }}/appimagetool.AppImage
+        run: PYTHON="$(command -v python)" packaging/build_linux.sh
+      - name: Verify AppDir metadata and launch artifact
+        shell: bash
+        run: |
+          test -L build/linux/AppDir/com.ruben-crespo-blanco.syllavox.desktop
+          test -L build/linux/AppDir/com.ruben-crespo-blanco.syllavox.png
+          test -L build/linux/AppDir/.DirIcon
+          appimage="$(find build/linux -maxdepth 1 -name '*.AppImage' -print -quit)"
+          test -n "${appimage}"
+          "${appimage}" >build/linux/appimage-smoke.log 2>&1 &
+          app_pid=$!
+          trap 'kill "${app_pid}" 2>/dev/null || true' EXIT
+          healthy=0
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:8765/v1/status >/dev/null; then
+              healthy=1
+              break
+            fi
+            sleep 1
+          done
+          test "${healthy}" -eq 1
+          kill "${app_pid}" 2>/dev/null || true
+          wait "${app_pid}" || true
+          trap - EXIT
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux-packages-and-smoke-log
+          path: |
+            build/linux/*.deb
+            build/linux/*.AppImage
+            build/linux/appimage-smoke.log

@@ -188,9 +188,9 @@ class LinuxESpeakProvider:
         final_path = Path(
             request.output_path
             or (
-                get_retained_audio_path(request.request_id)
+                get_retained_audio_path(request.artifact_id)
                 if request.retention == AudioRetention.RETAIN
-                else get_request_audio_path(request.request_id)
+                else get_request_audio_path(request.artifact_id)
             )
         )
         final_path.parent.mkdir(parents=True, exist_ok=True)
